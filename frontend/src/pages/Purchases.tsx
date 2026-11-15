@@ -11,7 +11,8 @@ import {
   FileText,
   DollarSign,
   ChevronDown,
-  Trash2
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { Purchase, Supplier, Product, PurchaseLine } from '../types';
@@ -28,6 +29,23 @@ export const Purchases: React.FC = () => {
   // Detail view modal
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
 
+  // Helper to create a fresh blank item line with zero/empty values
+  const createBlankItem = (prodList: Product[] = products): PurchaseLine => {
+    const firstProd = prodList[0];
+    return {
+      product_id: firstProd?.id || 1,
+      location_id: 1,
+      ordered_qty: 0,
+      received_qty: 0,
+      shortage_qty: 0,
+      damaged_qty: 0,
+      unit: firstProd?.base_unit || 'kg',
+      unit_cost: 0,
+      line_total: 0,
+      tax_category: firstProd?.tax_category || 'VAT_13'
+    };
+  };
+
   // New GRN Modal
   const [showGrnModal, setShowGrnModal] = useState(false);
   const [supplierId, setSupplierId] = useState<string>('');
@@ -40,10 +58,36 @@ export const Purchases: React.FC = () => {
   const [paymentReference, setPaymentReference] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
 
-  // Purchase items
+  // Purchase items - starts clean with empty 0 values
   const [items, setItems] = useState<PurchaseLine[]>([
-    { product_id: 1, location_id: 1, ordered_qty: 1000, received_qty: 1000, shortage_qty: 0, damaged_qty: 0, unit: 'kg', unit_cost: 88, line_total: 88000, tax_category: 'VAT_13' }
+    { product_id: 1, location_id: 1, ordered_qty: 0, received_qty: 0, shortage_qty: 0, damaged_qty: 0, unit: 'kg', unit_cost: 0, line_total: 0, tax_category: 'VAT_13' }
   ]);
+
+  // Reset entire GRN form to clean initial blank state
+  const resetGrnForm = (prodList: Product[] = products) => {
+    setSupplierId('');
+    setSupplierInvoiceNo('');
+    setPurchaseOrderNo('');
+    setFreightAmount(0);
+    setUnloadingCharge(0);
+    setAmountPaid(0);
+    setPaymentMethod('BANK_TRANSFER');
+    setPaymentReference('');
+    setNotes('');
+    const firstProd = prodList[0];
+    setItems([{
+      product_id: firstProd?.id || 1,
+      location_id: 1,
+      ordered_qty: 0,
+      received_qty: 0,
+      shortage_qty: 0,
+      damaged_qty: 0,
+      unit: firstProd?.base_unit || 'kg',
+      unit_cost: 0,
+      line_total: 0,
+      tax_category: firstProd?.tax_category || 'VAT_13'
+    }]);
+  };
 
   // Payment to supplier modal
   const [showPayModal, setShowPayModal] = useState(false);
@@ -79,22 +123,7 @@ export const Purchases: React.FC = () => {
   }, []);
 
   const addItemLine = () => {
-    const firstProd = products[0];
-    setItems([
-      ...items,
-      {
-        product_id: firstProd?.id || 1,
-        location_id: 1,
-        ordered_qty: 100,
-        received_qty: 100,
-        shortage_qty: 0,
-        damaged_qty: 0,
-        unit: firstProd?.base_unit || 'kg',
-        unit_cost: firstProd?.cost_price || 90,
-        line_total: (firstProd?.cost_price || 90) * 100,
-        tax_category: firstProd?.tax_category || 'VAT_13'
-      }
-    ]);
+    setItems([...items, createBlankItem()]);
   };
 
   const updateItemLine = (idx: number, updates: Partial<PurchaseLine>) => {
@@ -160,8 +189,17 @@ export const Purchases: React.FC = () => {
   // Submit GRN
   const handleCreateGrn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplierId || items.length === 0) {
-      alert('Supplier and items are required');
+    if (!supplierId) {
+      alert('Please select a supplier / आपूर्तिकर्ता छान्नुहोस्');
+      return;
+    }
+    if (!supplierInvoiceNo.trim()) {
+      alert('Please enter supplier invoice / bill number / आपूर्तिकर्ताको बिल नम्बर राख्नुहोस्');
+      return;
+    }
+    const hasValidItem = items.some(i => Number(i.received_qty) > 0);
+    if (!hasValidItem) {
+      alert('Please enter received quantity (> 0) for at least one item');
       return;
     }
 
@@ -186,12 +224,12 @@ export const Purchases: React.FC = () => {
         items: items.map(i => ({
           productId: i.product_id,
           locationId: i.location_id || 1,
-          orderedQty: i.ordered_qty,
-          receivedQty: i.received_qty,
-          shortageQty: i.shortage_qty,
-          damagedQty: i.damaged_qty,
+          orderedQty: Number(i.ordered_qty) || 0,
+          receivedQty: Number(i.received_qty) || 0,
+          shortageQty: Number(i.shortage_qty) || 0,
+          damagedQty: Number(i.damaged_qty) || 0,
           unit: i.unit,
-          unitCost: i.unit_cost,
+          unitCost: Number(i.unit_cost) || 0,
           taxCategory: i.tax_category
         })),
         freightAmount,
@@ -211,6 +249,7 @@ export const Purchases: React.FC = () => {
       const data = await res.json();
 
       if (data.success) {
+        resetGrnForm();
         setShowGrnModal(false);
         loadData();
       } else {
@@ -263,7 +302,10 @@ export const Purchases: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setShowGrnModal(true)}
+          onClick={() => {
+            resetGrnForm();
+            setShowGrnModal(true);
+          }}
           className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg shadow transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -377,7 +419,27 @@ export const Purchases: React.FC = () => {
                 <Truck className="w-5 h-5 text-orange-600" />
                 <span>Receive Goods (Goods Received Note - GRN)</span>
               </h3>
-              <button onClick={() => setShowGrnModal(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => resetGrnForm()}
+                  className="flex items-center gap-1.5 text-xs text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded font-semibold transition cursor-pointer"
+                  title="Clear all fields in this form"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Clear Form (सबै खाली गर्नुहोस्)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetGrnForm();
+                    setShowGrnModal(false);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 font-bold text-lg leading-none px-1"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleCreateGrn} className="space-y-4 text-xs">
@@ -462,7 +524,9 @@ export const Purchases: React.FC = () => {
                       <input
                         type="number"
                         step="any"
-                        value={item.ordered_qty}
+                        min="0"
+                        placeholder="0"
+                        value={item.ordered_qty || ''}
                         onChange={(e) => updateItemLine(idx, { ordered_qty: Number(e.target.value) || 0 })}
                         className="w-full px-2 py-1.5 border rounded font-mono"
                       />
@@ -473,7 +537,9 @@ export const Purchases: React.FC = () => {
                       <input
                         type="number"
                         step="any"
-                        value={item.received_qty}
+                        min="0"
+                        placeholder="0"
+                        value={item.received_qty || ''}
                         onChange={(e) => updateItemLine(idx, { received_qty: Number(e.target.value) || 0 })}
                         className="w-full px-2 py-1.5 border rounded font-mono font-bold text-emerald-700"
                       />
@@ -484,7 +550,9 @@ export const Purchases: React.FC = () => {
                       <input
                         type="number"
                         step="any"
-                        value={item.unit_cost}
+                        min="0"
+                        placeholder="0.00"
+                        value={item.unit_cost || ''}
                         onChange={(e) => updateItemLine(idx, { unit_cost: Number(e.target.value) || 0 })}
                         className="w-full px-2 py-1.5 border rounded font-mono font-bold"
                       />
@@ -633,8 +701,11 @@ export const Purchases: React.FC = () => {
               <div className="flex justify-end gap-2 pt-3 border-t">
                 <button
                   type="button"
-                  onClick={() => setShowGrnModal(false)}
-                  className="px-4 py-2 border rounded-lg font-semibold hover:bg-slate-50"
+                  onClick={() => {
+                    resetGrnForm();
+                    setShowGrnModal(false);
+                  }}
+                  className="px-4 py-2 border rounded-lg font-semibold hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
