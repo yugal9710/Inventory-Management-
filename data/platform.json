@@ -1,0 +1,437 @@
+{
+  "tenants": [
+    {
+      "id": "tenant-jagdamba-iron",
+      "name": "Jagdamba Steel & Iron Suppliers Pvt. Ltd.",
+      "slug": "jagdamba-iron",
+      "status": "Active",
+      "country": "Nepal",
+      "currency": "Rs.",
+      "timeZone": "Asia/Kathmandu",
+      "planId": "plan-professional",
+      "address": "Bhanu Chowk, Biratnagar-9, Morang, Koshi Province",
+      "phone": "+977 21 524100",
+      "pan": "601239841",
+      "contactPerson": "Dinesh Sharma (Owner)",
+      "createdAt": "2026-01-15T00:00:00.000Z",
+      "modules": {
+        "cutRemnants": true,
+        "cbmsSync": true,
+        "multiYard": true,
+        "dynamicQr": true,
+        "customerKhata": true,
+        "bulkDiscounts": true
+      },
+      "subscription": {
+        "planId": "plan-professional",
+        "billingCycle": "Yearly",
+        "status": "Active",
+        "expiryDate": "2027-10-31T00:00:00.000Z",
+        "totalAmountDue": 75000,
+        "amountPaid": 75000,
+        "remainingBalance": 0
+      }
+    },
+    {
+      "id": "tenant-panchakanya-iron",
+      "name": "Panchakanya Metal & Steels Traders",
+      "slug": "panchakanya-steels",
+      "status": "Active",
+      "country": "Nepal",
+      "currency": "Rs.",
+      "timeZone": "Asia/Kathmandu",
+      "planId": "plan-enterprise",
+      "address": "Birgunj Dryport Road, Parsa, Madhesh Province",
+      "phone": "+977 51 532980",
+      "pan": "609823411",
+      "contactPerson": "Rameshwor Prasad Sah",
+      "createdAt": "2026-02-01T00:00:00.000Z",
+      "modules": {
+        "cutRemnants": true,
+        "cbmsSync": true,
+        "multiYard": true,
+        "dynamicQr": true,
+        "customerKhata": true,
+        "bulkDiscounts": true
+      },
+      "subscription": {
+        "planId": "plan-enterprise",
+        "billingCycle": "Yearly",
+        "status": "Active",
+        "expiryDate": "2028-08-15T00:00:00.000Z",
+        "totalAmountDue": 180000,
+        "amountPaid": 300000,
+        "remainingBalance": 0
+      }
+    },
+    {
+      "id": "tenant-hulas-iron",
+      "name": "Hulas Iron & CGI Sheet Depot",
+      "slug": "hulas-depot",
+      "status": "Active",
+      "country": "Nepal",
+      "currency": "Rs.",
+      "timeZone": "Asia/Kathmandu",
+      "planId": "plan-starter",
+      "address": "Kalanki-14, Kathmandu, Bagmati Province",
+      "phone": "+977 1 4287110",
+      "pan": "604491023",
+      "contactPerson": "Bikram Shrestha",
+      "createdAt": "2026-03-10T00:00:00.000Z",
+      "modules": {
+        "cutRemnants": false,
+        "cbmsSync": true,
+        "multiYard": false,
+        "dynamicQr": true,
+        "customerKhata": true,
+        "bulkDiscounts": false
+      },
+      "subscription": {
+        "planId": "plan-starter",
+        "billingCycle": "Monthly",
+        "status": "Active",
+        "expiryDate": "2026-12-15T00:00:00.000Z",
+        "totalAmountDue": 3500,
+        "amountPaid": 3500,
+        "remainingBalance": 0
+      }
+    }
+  ],
+  "plans": [
+    {
+      "id": "plan-starter",
+      "name": "Starter Retail Store (काउन्टर पसल)",
+      "priceMonthly": 3500,
+      "priceYearly": 35000,
+      "maxBranches": 1,
+      "maxStaff": 5,
+      "maxCustomers": 1000,
+      "storageQuotaMb": 5120,
+      "modules": {
+        "cutRemnants": false,
+        "cbmsSync": true,
+        "multiYard": false,
+        "dynamicQr": true,
+        "customerKhata": true,
+        "bulkDiscounts": false
+      }
+    },
+    {
+      "id": "plan-professional",
+      "name": "Professional Wholesale & Yard (गोदाम तथा कटिङ)",
+      "priceMonthly": 7500,
+      "priceYearly": 75000,
+      "maxBranches": 3,
+      "maxStaff": 15,
+      "maxCustomers": 5000,
+      "storageQuotaMb": 25600,
+      "modules": {
+        "cutRemnants": true,
+        "cbmsSync": true,
+        "multiYard": true,
+        "dynamicQr": true,
+        "customerKhata": true,
+        "bulkDiscounts": true
+      }
+    },
+    {
+      "id": "plan-enterprise",
+      "name": "Enterprise Multi-Yard Hub (कर्पोरेट रोलिङ मिल्स)",
+      "priceMonthly": 18000,
+      "priceYearly": 180000,
+      "maxBranches": 10,
+      "maxStaff": 100,
+      "maxCustomers": 50000,
+      "storageQuotaMb": 102400,
+      "modules": {
+        "cutRemnants": true,
+        "cbmsSync": true,
+        "multiYard": true,
+        "dynamicQr": true,
+        "customerKhata": true,
+        "bulkDiscounts": true
+      }
+    }
+  ],
+  "domains": [
+    {
+      "id": "dom-1",
+      "tenantId": "tenant-jagdamba-iron",
+      "domain": "jagdamba-iron.anacraft.com",
+      "type": "subdomain",
+      "isPrimary": true,
+      "verified": true,
+      "sslStatus": "active"
+    },
+    {
+      "id": "dom-2",
+      "tenantId": "tenant-jagdamba-iron",
+      "domain": "billing.jagdambairon.com.np",
+      "type": "custom",
+      "isPrimary": false,
+      "verified": true,
+      "sslStatus": "active"
+    },
+    {
+      "id": "dom-3",
+      "tenantId": "tenant-panchakanya-iron",
+      "domain": "panchakanya-steels.anacraft.com",
+      "type": "subdomain",
+      "isPrimary": true,
+      "verified": true,
+      "sslStatus": "active"
+    },
+    {
+      "id": "dom-4",
+      "tenantId": "tenant-hulas-iron",
+      "domain": "hulas-depot.anacraft.com",
+      "type": "subdomain",
+      "isPrimary": true,
+      "verified": true,
+      "sslStatus": "active"
+    }
+  ],
+  "payments": [
+    {
+      "id": "pay-1794745308515",
+      "tenantId": "tenant-panchakanya-iron",
+      "amount": 180000,
+      "date": "2026-11-15",
+      "method": "Verified Bank Voucher / Fonepay",
+      "transactionRef": "CONNECTIPS-88492019",
+      "invoiceNo": "INV-AC-2026-8515",
+      "billingPeriod": "Yearly Subscription (Enterprise Multi-Yard Hub (कर्पोरेट रोलिङ मिल्स))",
+      "notes": "Renewal voucher verified and approved by Developer Admin.",
+      "recordedBy": "Developer Admin"
+    },
+    {
+      "id": "pay-1",
+      "tenantId": "tenant-jagdamba-iron",
+      "amount": 75000,
+      "date": "2026-10-31",
+      "method": "Fonepay QR",
+      "transactionRef": "FP-NABIL-881293",
+      "invoiceNo": "INV-AC-2026-081",
+      "billingPeriod": "2026-2027 Annual Subscription",
+      "notes": "Full payment verified via Nabil Bank Merchant Statement.",
+      "recordedBy": "Developer Admin"
+    },
+    {
+      "id": "pay-2",
+      "tenantId": "tenant-panchakanya-iron",
+      "amount": 120000,
+      "date": "2026-08-15",
+      "method": "Bank Transfer (connectIPS)",
+      "transactionRef": "IPS-TXN-902188",
+      "invoiceNo": "INV-AC-2026-042",
+      "billingPeriod": "2026-2027 Multi-Yard Subscription",
+      "notes": "First installment received. Balance Rs. 60,000 due in Mangshir 2083.",
+      "recordedBy": "Developer Admin"
+    },
+    {
+      "id": "pay-3",
+      "tenantId": "tenant-hulas-iron",
+      "amount": 3500,
+      "date": "2026-11-15",
+      "method": "Fonepay QR",
+      "transactionRef": "FP-MBL-442199",
+      "invoiceNo": "INV-AC-2026-109",
+      "billingPeriod": "Nov-Dec 2026 Monthly Subscription",
+      "notes": "Monthly renewal verified.",
+      "recordedBy": "Developer Admin"
+    }
+  ],
+  "users": [
+    {
+      "id": "usr-1",
+      "tenantId": "tenant-jagdamba-iron",
+      "name": "Dinesh Sharma",
+      "email": "owner@jagdambairon.com",
+      "username": "admin",
+      "role": "admin",
+      "phone": "+977 9851087654",
+      "active": true
+    },
+    {
+      "id": "usr-2",
+      "tenantId": "tenant-jagdamba-iron",
+      "name": "Suman Thapa",
+      "email": "cashier@jagdambairon.com",
+      "username": "cashier",
+      "role": "cashier",
+      "phone": "+977 9841234567",
+      "active": true
+    },
+    {
+      "id": "usr-3",
+      "tenantId": "tenant-jagdamba-iron",
+      "name": "Bikash Tamang",
+      "email": "yard@jagdambairon.com",
+      "username": "storekeeper",
+      "role": "storekeeper",
+      "phone": "+977 9812345678",
+      "active": true
+    },
+    {
+      "id": "usr-4",
+      "tenantId": "tenant-jagdamba-iron",
+      "name": "Pooja Shrestha",
+      "email": "accounts@jagdambairon.com",
+      "username": "accountant",
+      "role": "accountant",
+      "phone": "+977 9801234567",
+      "active": true
+    },
+    {
+      "id": "usr-5",
+      "tenantId": "tenant-panchakanya-iron",
+      "name": "Rameshwor Sah",
+      "email": "rameshwor@panchakanya.np",
+      "username": "pk_admin",
+      "role": "admin",
+      "phone": "+977 9855012345",
+      "active": true
+    },
+    {
+      "id": "usr-6",
+      "tenantId": "tenant-hulas-iron",
+      "name": "Bikram Shrestha",
+      "email": "bikram@hulasdepot.np",
+      "username": "hulas_admin",
+      "role": "admin",
+      "phone": "+977 9841987654",
+      "active": true
+    }
+  ],
+  "renewals": [
+    {
+      "id": "renew-101",
+      "tenantId": "tenant-jagdamba-iron",
+      "tenantName": "Jagdamba Steel & Iron Suppliers Pvt. Ltd.",
+      "userId": "usr-1",
+      "userName": "Dinesh Sharma (Owner)",
+      "userEmail": "owner@jagdambairon.com",
+      "payerName": "Dinesh Sharma",
+      "planId": "plan-professional",
+      "planName": "Professional Wholesale & Yard (गोदाम तथा कटिङ)",
+      "billingCycle": "Yearly",
+      "amount": 75000,
+      "currency": "Rs.",
+      "transactionRef": "NABIL-TXN-998811-VERIFIED",
+      "receiptUrl": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"600\" height=\"400\" viewBox=\"0 0 600 400\"><rect width=\"600\" height=\"400\" fill=\"%23f1f5f9\" rx=\"16\"/><rect x=\"40\" y=\"40\" width=\"520\" height=\"320\" fill=\"white\" stroke=\"%23cbd5e1\" stroke-width=\"2\" rx=\"12\"/><text x=\"70\" y=\"90\" font-family=\"sans-serif\" font-size=\"20\" font-weight=\"bold\" fill=\"%231e293b\">Nabil Bank Limited - Payment Voucher</text><line x1=\"70\" y1=\"110\" x2=\"530\" y2=\"110\" stroke=\"%23e2e8f0\" stroke-width=\"2\"/><text x=\"70\" y=\"150\" font-family=\"sans-serif\" font-size=\"14\" fill=\"%2364748b\">Beneficiary: Anaya Craft IT Solutions Pvt. Ltd.</text><text x=\"70\" y=\"180\" font-family=\"sans-serif\" font-size=\"14\" fill=\"%2364748b\">Account No: 01201017500982 (New Baneshwor)</text><text x=\"70\" y=\"220\" font-family=\"sans-serif\" font-size=\"16\" font-weight=\"bold\" fill=\"%230f766e\">Amount Transferred: NPR 75,000.00</text><text x=\"70\" y=\"250\" font-family=\"sans-serif\" font-size=\"14\" fill=\"%2364748b\">Txn Ref: NABIL-TXN-998811-VERIFIED</text><text x=\"70\" y=\"280\" font-family=\"sans-serif\" font-size=\"13\" fill=\"%2394a3b8\">Timestamp: 2026-10-31 14:22:10 NPT</text><rect x=\"420\" y=\"140\" width=\"110\" height=\"110\" fill=\"%23f8fafc\" stroke=\"%230284c7\" stroke-dasharray=\"4\" rx=\"8\"/><text x=\"440\" y=\"200\" font-family=\"sans-serif\" font-size=\"12\" fill=\"%230284c7\" font-weight=\"bold\">SUCCESS</text></svg>",
+      "receiptFileName": "nabil_verified_statement.png",
+      "status": "APPROVED",
+      "submittedAt": "2026-10-31T14:25:00.000Z",
+      "reviewedAt": "2026-10-31T14:35:00.000Z",
+      "reviewedBy": "Developer Admin",
+      "rejectionReason": "",
+      "rejectionInstructions": ""
+    },
+    {
+      "id": "renew-102",
+      "tenantId": "tenant-panchakanya-iron",
+      "tenantName": "Panchakanya Metal & Steels Traders",
+      "userId": "usr-5",
+      "userName": "Rameshwor Sah",
+      "userEmail": "rameshwor@panchakanya.np",
+      "payerName": "Panchakanya Metal Traders A/C",
+      "planId": "plan-enterprise",
+      "planName": "Enterprise Multi-Yard Hub (कर्पोरेट रोलिङ मिल्स)",
+      "billingCycle": "Yearly",
+      "amount": 180000,
+      "currency": "Rs.",
+      "transactionRef": "CONNECTIPS-88492019",
+      "receiptUrl": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"600\" height=\"400\" viewBox=\"0 0 600 400\"><rect width=\"600\" height=\"400\" fill=\"%23f1f5f9\" rx=\"16\"/><rect x=\"40\" y=\"40\" width=\"520\" height=\"320\" fill=\"white\" stroke=\"%23cbd5e1\" stroke-width=\"2\" rx=\"12\"/><text x=\"70\" y=\"90\" font-family=\"sans-serif\" font-size=\"20\" font-weight=\"bold\" fill=\"%231e293b\">Nabil Bank Limited - Payment Voucher</text><line x1=\"70\" y1=\"110\" x2=\"530\" y2=\"110\" stroke=\"%23e2e8f0\" stroke-width=\"2\"/><text x=\"70\" y=\"150\" font-family=\"sans-serif\" font-size=\"14\" fill=\"%2364748b\">Beneficiary: Anaya Craft IT Solutions Pvt. Ltd.</text><text x=\"70\" y=\"180\" font-family=\"sans-serif\" font-size=\"14\" fill=\"%2364748b\">Account No: 01201017500982 (New Baneshwor)</text><text x=\"70\" y=\"220\" font-family=\"sans-serif\" font-size=\"16\" font-weight=\"bold\" fill=\"%230f766e\">Amount Transferred: NPR 75,000.00</text><text x=\"70\" y=\"250\" font-family=\"sans-serif\" font-size=\"14\" fill=\"%2364748b\">Txn Ref: NABIL-TXN-998811-VERIFIED</text><text x=\"70\" y=\"280\" font-family=\"sans-serif\" font-size=\"13\" fill=\"%2394a3b8\">Timestamp: 2026-10-31 14:22:10 NPT</text><rect x=\"420\" y=\"140\" width=\"110\" height=\"110\" fill=\"%23f8fafc\" stroke=\"%230284c7\" stroke-dasharray=\"4\" rx=\"8\"/><text x=\"440\" y=\"200\" font-family=\"sans-serif\" font-size=\"12\" fill=\"%230284c7\" font-weight=\"bold\">SUCCESS</text></svg>",
+      "receiptFileName": "connectips_voucher_180k.png",
+      "status": "APPROVED",
+      "submittedAt": "2026-11-15T09:30:00.000Z",
+      "reviewedAt": "2026-11-15T12:21:48.515Z",
+      "reviewedBy": "Developer Admin",
+      "rejectionReason": "",
+      "rejectionInstructions": ""
+    }
+  ],
+  "paymentConfig": {
+    "accountName": "Anaya Craft IT Solutions Pvt. Ltd.",
+    "bankName": "Nabil Bank Limited",
+    "accountNumber": "01201017500982",
+    "branch": "New Baneshwor Branch, Kathmandu",
+    "paymentIdentifier": "anacraft@nabil",
+    "fonepayMerchantId": "9801234567",
+    "currency": "Rs.",
+    "supportPhone": "+977 98012 34567",
+    "supportEmail": "billing@anacraft.com",
+    "qrCodeUrl": "/qr-fonepay-nabil.svg",
+    "instructions": "Please transfer the exact plan subscription amount via Mobile Banking, connectIPS, eSewa, Khalti, or Fonepay QR to our official Nabil Bank merchant account. Upload the payment voucher or screenshot below with your Payer Name."
+  },
+  "auditLogs": [
+    {
+      "id": "log-1794745318713",
+      "timestamp": "2026-11-15T12:21:58.713Z",
+      "action": "MODULE_TOGGLED",
+      "tenantId": "tenant-jagdamba-iron",
+      "user": "Developer Admin",
+      "details": "Feature module \"cutRemnants\" set to true."
+    },
+    {
+      "id": "log-1794745308524",
+      "timestamp": "2026-11-15T12:21:48.524Z",
+      "action": "RENEWAL_APPROVED",
+      "tenantId": "tenant-panchakanya-iron",
+      "user": "Developer Admin",
+      "details": "Subscription renewal for \"Panchakanya Metal & Steels Traders\" approved by Developer Admin. Expiry extended."
+    },
+    {
+      "id": "log-1794745308502",
+      "timestamp": "2026-11-15T12:21:48.502Z",
+      "action": "SUPPORT_GRANT_ISSUED",
+      "tenantId": "tenant-jagdamba-iron",
+      "user": "Developer Admin",
+      "details": "Audited support token issued for 30 mins. Reason: Test audit check"
+    },
+    {
+      "id": "log-1794745308469",
+      "timestamp": "2026-11-15T12:21:48.469Z",
+      "action": "MODULE_TOGGLED",
+      "tenantId": "tenant-jagdamba-iron",
+      "user": "Developer Admin",
+      "details": "Feature module \"cutRemnants\" set to false."
+    },
+    {
+      "id": "log-1",
+      "timestamp": "2026-10-31T14:35:00.000Z",
+      "action": "RENEWAL_APPROVED",
+      "tenantId": "tenant-jagdamba-iron",
+      "user": "Developer Admin",
+      "details": "Subscription renewal of Rs. 75,000 approved. Expiry extended to 2027-10-31."
+    },
+    {
+      "id": "log-2",
+      "timestamp": "2026-10-30T10:15:00.000Z",
+      "action": "MODULE_TOGGLED",
+      "tenantId": "tenant-jagdamba-iron",
+      "user": "Developer Admin",
+      "details": "Cut-Length Remnants Engine verified and active."
+    },
+    {
+      "id": "log-3",
+      "timestamp": "2026-10-25T11:00:00.000Z",
+      "action": "DOMAIN_VERIFIED",
+      "tenantId": "tenant-jagdamba-iron",
+      "user": "Developer Admin",
+      "details": "Custom domain billing.jagdambairon.com.np SSL certificate issued."
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif-1",
+      "type": "RENEWAL_REQUEST_SUBMITTED",
+      "title": "Renewal Request: Panchakanya Metal & Steels Traders",
+      "message": "Rameshwor Sah submitted renewal voucher for Enterprise Multi-Yard Hub (Rs. 1,80,000). Verification required.",
+      "tenantId": "tenant-panchakanya-iron",
+      "renewalId": "renew-102",
+      "submittedAt": "2026-11-15T09:30:00.000Z",
+      "read": false
+    }
+  ]
+}

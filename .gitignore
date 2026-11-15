@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Production build outputs
+frontend/dist/
+dist/
+
+# SQLite WAL and journal files (keep base database if needed or let server seed)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Environment & logs
+.env.local
+*.log
+npm-debug.log*
+
+# Editor directories
+.vscode/
+.idea/
+.DS_Store
+
+# Scratch and temp
+temp_repo/
