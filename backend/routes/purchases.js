@@ -182,11 +182,13 @@ router.post('/', (req, res) => {
       });
 
       const totalAmount = Number((subtotal - Number(discount || 0) + totalAdditionalCosts + taxAmount).toFixed(2));
-      const paid = Number(amountPaid || 0);
-      const balanceDue = Number((totalAmount - paid).toFixed(2));
+      const rawPaid = Number(amountPaid || 0);
+      const paid = Math.min(rawPaid, totalAmount);
+      const balanceDue = Math.max(0, Number((totalAmount - paid).toFixed(2)));
 
       let paymentStatus = 'PAID';
-      if (balanceDue > 0 && paid > 0) paymentStatus = 'PARTIAL';
+      if (balanceDue === 0 && (paid > 0 || totalAmount === 0)) paymentStatus = 'PAID';
+      else if (balanceDue > 0 && paid > 0) paymentStatus = 'PARTIAL';
       else if (balanceDue > 0 && paid === 0) paymentStatus = 'UNPAID';
 
       // 2. Insert purchase header
@@ -317,7 +319,10 @@ router.post('/:id/payment', (req, res) => {
     const purchase = db.prepare('SELECT * FROM purchases WHERE id = ?').get(req.params.id);
     if (!purchase) return res.status(404).json({ success: false, error: 'Purchase not found' });
 
-    const payAmt = Number(amount);
+    const payAmt = Math.min(Number(amount), Math.max(0, purchase.balance_due));
+    if (payAmt <= 0) {
+      return res.status(400).json({ success: false, error: 'Purchase invoice is already settled in full' });
+    }
     const todayBs = getTodayBs();
     const { adDateStr } = bsToAd(todayBs);
 
@@ -332,8 +337,8 @@ router.post('/:id/payment', (req, res) => {
         )
       `).run(purchase.supplier_id, purchase.id, method, payAmt, adDateStr, todayBs, referenceNumber, notes, userId);
 
-      const newPaid = purchase.amount_paid + payAmt;
-      const newDue = Math.max(0, purchase.total_amount - newPaid);
+      const newPaid = Math.min(purchase.total_amount, purchase.amount_paid + payAmt);
+      const newDue = Math.max(0, Number((purchase.total_amount - newPaid).toFixed(2)));
       const newStatus = newDue === 0 ? 'PAID' : 'PARTIAL';
 
       db.prepare('UPDATE purchases SET amount_paid = ?, balance_due = ?, payment_status = ? WHERE id = ?')
@@ -341,6 +346,32 @@ router.post('/:id/payment', (req, res) => {
     })();
 
     res.json({ success: true, message: 'Supplier payment recorded successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE purchase by ID (rolls back stock, lines, and payments)
+router.delete('/:id', (req, res) => {
+  try {
+    const purchase = db.prepare('SELECT * FROM purchases WHERE id = ?').get(req.params.id);
+    if (!purchase) return res.status(404).json({ success: false, error: 'Purchase not found' });
+
+    db.transaction(() => {
+      // 1. Delete associated payments
+      db.prepare("DELETE FROM payments WHERE reference_type = 'PURCHASE' AND reference_id = ?").run(purchase.id);
+
+      // 2. Delete stock ledger movements
+      db.prepare("DELETE FROM stock_ledger WHERE movement_type = 'PURCHASE_RECEIPT' AND reference_id = ?").run(purchase.id);
+
+      // 3. Delete purchase lines
+      db.prepare("DELETE FROM purchase_lines WHERE purchase_id = ?").run(purchase.id);
+
+      // 4. Delete purchase header
+      db.prepare("DELETE FROM purchases WHERE id = ?").run(purchase.id);
+    })();
+
+    res.json({ success: true, message: 'Purchase record deleted and stock reversed' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

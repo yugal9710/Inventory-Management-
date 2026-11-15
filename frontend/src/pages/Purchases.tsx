@@ -10,7 +10,8 @@ import {
   CreditCard,
   FileText,
   DollarSign,
-  ChevronDown
+  ChevronDown,
+  Trash2
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { Purchase, Supplier, Product, PurchaseLine } from '../types';
@@ -121,12 +122,59 @@ export const Purchases: React.FC = () => {
     setItems(items.filter((_, i) => i !== idx));
   };
 
+  const calculateGrnSummary = () => {
+    let subtotal = 0;
+    let vatAmount = 0;
+    for (const item of items) {
+      const lineGross = Number(item.received_qty || 0) * Number(item.unit_cost || 0);
+      subtotal += lineGross;
+      if (item.tax_category === 'VAT_13') {
+        vatAmount += lineGross * 0.13;
+      }
+    }
+    const additional = Number(freightAmount || 0) + Number(unloadingCharge || 0);
+    const total = Number((subtotal + vatAmount + additional).toFixed(2));
+    return {
+      subtotal: Number(subtotal.toFixed(2)),
+      vatAmount: Number(vatAmount.toFixed(2)),
+      additional: Number(additional.toFixed(2)),
+      total
+    };
+  };
+
+  const handleDeletePurchase = async (id: number, poNo: string) => {
+    if (!window.confirm(`Delete purchase record "${poNo}"? This will reverse the stock movements and payment records.`)) return;
+    try {
+      const res = await fetch(`/api/purchases/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        loadData();
+      } else {
+        alert(data.error);
+      }
+    } catch (e: any) {
+      alert(e.message);
+    }
+  };
+
   // Submit GRN
   const handleCreateGrn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supplierId || items.length === 0) {
       alert('Supplier and items are required');
       return;
+    }
+
+    const summary = calculateGrnSummary();
+    let finalAmountPaid = Number(amountPaid || 0);
+    if (finalAmountPaid > summary.total) {
+      const confirmCap = window.confirm(
+        `Amount paid (${formatNpr(finalAmountPaid)}) exceeds total payable (${formatNpr(summary.total)}).\n\nDo you want to adjust amount paid to the exact bill total ${formatNpr(summary.total)}?`
+      );
+      if (confirmCap) {
+        finalAmountPaid = summary.total;
+        setAmountPaid(summary.total);
+      }
     }
 
     try {
@@ -148,7 +196,7 @@ export const Purchases: React.FC = () => {
         })),
         freightAmount,
         unloadingCharge,
-        amountPaid,
+        amountPaid: finalAmountPaid,
         paymentMethod,
         paymentReference,
         notes,
@@ -266,8 +314,12 @@ export const Purchases: React.FC = () => {
                   <td className="px-4 py-3 text-right font-mono text-emerald-700 font-semibold">
                     {formatNpr(p.amount_paid)}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-red-600">
-                    {formatNpr(p.balance_due)}
+                  <td className="px-4 py-3 text-right font-mono font-bold">
+                    {p.balance_due > 0 ? (
+                      <span className="text-red-600">{formatNpr(p.balance_due)}</span>
+                    ) : (
+                      <span className="text-emerald-700">Rs. 0.00</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -300,6 +352,13 @@ export const Purchases: React.FC = () => {
                           Pay
                         </button>
                       )}
+                      <button
+                        onClick={() => handleDeletePurchase(p.id, p.purchase_order_no)}
+                        className="p-1 text-slate-400 hover:text-red-600 rounded transition"
+                        title="Delete purchase entry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -477,6 +536,62 @@ export const Purchases: React.FC = () => {
                   <p className="text-[10px] text-amber-700 mt-1">Included in stock valuation cost.</p>
                 </div>
               </div>
+
+              {/* Live Calculation Summary */}
+              {(() => {
+                const summary = calculateGrnSummary();
+                const diff = (amountPaid || 0) - summary.total;
+                return (
+                  <div className="bg-slate-900 text-white rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-300 border-b border-slate-700 pb-2">
+                      <span>Subtotal (वस्तुको मूल्य): <strong className="text-white font-mono">{formatNpr(summary.subtotal)}</strong></span>
+                      <span>13% VAT: <strong className="text-white font-mono">{formatNpr(summary.vatAmount)}</strong></span>
+                      <span>Freight & Labour: <strong className="text-white font-mono">{formatNpr(summary.additional)}</strong></span>
+                      <span className="text-sm font-bold text-amber-400">Total Payable: <strong className="text-emerald-400 font-mono text-base">{formatNpr(summary.total)}</strong></span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">Quick Set:</span>
+                        <button
+                          type="button"
+                          onClick={() => setAmountPaid(summary.total)}
+                          className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold transition"
+                        >
+                          Pay Full ({formatNpr(summary.total)})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAmountPaid(0)}
+                          className="px-2 py-0.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-[11px] font-semibold transition"
+                        >
+                          Pay Later / Credit (Rs. 0)
+                        </button>
+                      </div>
+
+                      <div className="text-right">
+                        {amountPaid > summary.total ? (
+                          <span className="text-red-400 font-bold text-xs bg-red-950/80 px-2 py-0.5 rounded border border-red-500/50">
+                            ⚠ Exceeds bill total by {formatNpr(diff)}
+                          </span>
+                        ) : amountPaid === summary.total && summary.total > 0 ? (
+                          <span className="text-emerald-400 font-semibold text-xs">
+                            ✓ Fully Settled (Balance Due: Rs. 0.00)
+                          </span>
+                        ) : amountPaid > 0 ? (
+                          <span className="text-amber-400 font-semibold text-xs">
+                            Partial Payment (Balance Due: {formatNpr(summary.total - amountPaid)})
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">
+                            Full Credit (Balance Due: {formatNpr(summary.total)})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Payment Details */}
               <div className="grid grid-cols-3 gap-3">
