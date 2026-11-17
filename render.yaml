@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: Inventory-Management-
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm --prefix frontend install && npm --prefix frontend run build
+    startCommand: node backend/server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: PORT
+        value: 10000
