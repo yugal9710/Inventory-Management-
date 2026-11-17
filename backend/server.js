@@ -50,13 +50,16 @@ app.get('/api/health', (req, res) => {
 });
 
 // Serve frontend build if in production
-const frontendDist = path.join(__dirname, '../frontend/dist');
 const fs = require('fs');
-if (fs.existsSync(frontendDist)) {
-  app.use(express.static(frontendDist));
+const rootBuild = path.join(__dirname, '../build');
+const frontendDist = path.join(__dirname, '../frontend/dist');
+const staticDir = fs.existsSync(rootBuild) ? rootBuild : (fs.existsSync(frontendDist) ? frontendDist : null);
+
+if (staticDir) {
+  app.use(express.static(staticDir));
   app.use((req, res, next) => {
     if (req.method === 'GET' && !req.path.startsWith('/api')) {
-      return res.sendFile(path.join(frontendDist, 'index.html'));
+      return res.sendFile(path.join(staticDir, 'index.html'));
     }
     next();
   });
