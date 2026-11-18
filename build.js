@@ -69,6 +69,15 @@ async function ensureAllAssets() {
 }
 
 async function run() {
+  // Rebuild native C++ modules against Render's exact Node.js binary and Linux glibc
+  try {
+    console.log('Rebuilding native dependencies (better-sqlite3) for container environment...');
+    execSync('npm rebuild better-sqlite3', { cwd: ROOT_DIR, stdio: 'inherit' });
+    console.log('✓ better-sqlite3 native binary verified.');
+  } catch (rbErr) {
+    console.warn('Native rebuild note:', rbErr.message || rbErr);
+  }
+
   // Check if build/index.html is already present
   if (fs.existsSync(path.join(BUILD_DIR, 'index.html'))) {
     console.log('✓ Verified production bundle in "build/" directory.');

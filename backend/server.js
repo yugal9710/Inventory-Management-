@@ -2,11 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { initSchema } = require('./db/schema');
+console.log('📦 Initializing SQLite database connection...');
 const db = require('./db/database');
+console.log('✓ Database connected successfully.');
 
-// Initialize SQLite Schema
+console.log('📦 Initializing schema...');
+const { initSchema } = require('./db/schema');
 initSchema();
+console.log('✓ Schema initialized successfully.');
 
 // Auto-seed if database is fresh on cloud deployment
 try {
