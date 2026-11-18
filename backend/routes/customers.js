@@ -88,18 +88,50 @@ router.get('/:id', (req, res) => {
 // POST create customer
 router.post('/', (req, res) => {
   try {
-    const { name, phone, address, pan_vat, credit_limit = 0, payment_terms_days = 30, opening_balance = 0, notes } = req.body;
+    const {
+      name,
+      phone,
+      secondary_phone,
+      email,
+      contact_person,
+      customer_type = 'Contractor',
+      address,
+      permanent_address,
+      temporary_address,
+      location_meta,
+      pan_vat,
+      credit_limit = 0,
+      payment_terms_days = 30,
+      opening_balance = 0,
+      notes
+    } = req.body;
+
     if (!name) return res.status(400).json({ success: false, error: 'Customer name is required' });
 
+    // Primary address fallback
+    const resolvedAddress = address || temporary_address || permanent_address || null;
+    const metaStr = typeof location_meta === 'object' ? JSON.stringify(location_meta) : (location_meta || null);
+
     const insert = db.prepare(`
-      INSERT INTO customers (name, phone, address, pan_vat, credit_limit, payment_terms_days, opening_balance, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO customers (
+        name, phone, secondary_phone, email, contact_person, customer_type,
+        address, permanent_address, temporary_address, location_meta,
+        pan_vat, credit_limit, payment_terms_days, opening_balance, notes
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = insert.run(
       name,
       phone || null,
-      address || null,
+      secondary_phone || null,
+      email || null,
+      contact_person || null,
+      customer_type || 'Contractor',
+      resolvedAddress,
+      permanent_address || null,
+      temporary_address || null,
+      metaStr,
       pan_vat || null,
       Number(credit_limit || 0),
       Number(payment_terms_days || 30),
@@ -116,12 +148,39 @@ router.post('/', (req, res) => {
 // PUT update customer
 router.put('/:id', (req, res) => {
   try {
-    const { name, phone, address, pan_vat, credit_limit, payment_terms_days, notes, active } = req.body;
+    const {
+      name,
+      phone,
+      secondary_phone,
+      email,
+      contact_person,
+      customer_type = 'Contractor',
+      address,
+      permanent_address,
+      temporary_address,
+      location_meta,
+      pan_vat,
+      credit_limit,
+      payment_terms_days,
+      notes,
+      active
+    } = req.body;
+
+    const resolvedAddress = address || temporary_address || permanent_address || null;
+    const metaStr = typeof location_meta === 'object' ? JSON.stringify(location_meta) : (location_meta || null);
+
     const update = db.prepare(`
       UPDATE customers SET
         name = @name,
         phone = @phone,
+        secondary_phone = @secondary_phone,
+        email = @email,
+        contact_person = @contact_person,
+        customer_type = @customer_type,
         address = @address,
+        permanent_address = @permanent_address,
+        temporary_address = @temporary_address,
+        location_meta = @location_meta,
         pan_vat = @pan_vat,
         credit_limit = @credit_limit,
         payment_terms_days = @payment_terms_days,
@@ -134,7 +193,14 @@ router.put('/:id', (req, res) => {
       id: req.params.id,
       name,
       phone: phone || null,
-      address: address || null,
+      secondary_phone: secondary_phone || null,
+      email: email || null,
+      contact_person: contact_person || null,
+      customer_type: customer_type || 'Contractor',
+      address: resolvedAddress,
+      permanent_address: permanent_address || null,
+      temporary_address: temporary_address || null,
+      location_meta: metaStr,
       pan_vat: pan_vat || null,
       credit_limit: Number(credit_limit || 0),
       payment_terms_days: Number(payment_terms_days || 30),

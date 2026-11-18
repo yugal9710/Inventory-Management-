@@ -94,7 +94,14 @@ export interface Customer {
   id: number;
   name: string;
   phone?: string;
+  secondary_phone?: string;
+  email?: string;
+  contact_person?: string;
+  customer_type?: string;
   address?: string;
+  permanent_address?: string;
+  temporary_address?: string;
+  location_meta?: string;
   pan_vat?: string;
   credit_limit: number;
   payment_terms_days: number;
