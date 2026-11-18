@@ -43,17 +43,17 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 'dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['admin', 'cashier', 'storekeeper', 'accountant'] },
-  { id: 'pos', labelKey: 'posBilling', icon: ShoppingCart, roles: ['admin', 'cashier'] },
-  { id: 'products', labelKey: 'products', icon: Boxes, roles: ['admin', 'cashier', 'storekeeper', 'accountant'] },
-  { id: 'inventory', labelKey: 'inventory', icon: Warehouse, roles: ['admin', 'storekeeper', 'accountant'] },
-  { id: 'purchases', labelKey: 'purchases', icon: Truck, roles: ['admin', 'storekeeper', 'accountant'] },
-  { id: 'customers', labelKey: 'customers', icon: Users, roles: ['admin', 'cashier', 'accountant'] },
-  { id: 'suppliers', labelKey: 'suppliers', icon: Building2, roles: ['admin', 'accountant'] },
-  { id: 'cashbook', labelKey: 'cashbook', icon: Wallet, roles: ['admin', 'cashier', 'accountant'] },
-  { id: 'reports', labelKey: 'reports', icon: FileSpreadsheet, roles: ['admin', 'accountant'] },
-  { id: 'settings', labelKey: 'settings', icon: Settings, roles: ['admin'] },
-  { id: 'developer', labelKey: 'developerConsole', icon: Server, roles: ['admin'] },
+  { id: 'dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['super_admin', 'admin', 'cashier', 'storekeeper', 'accountant'] },
+  { id: 'pos', labelKey: 'posBilling', icon: ShoppingCart, roles: ['super_admin', 'admin', 'cashier'] },
+  { id: 'products', labelKey: 'products', icon: Boxes, roles: ['super_admin', 'admin', 'cashier', 'storekeeper', 'accountant'] },
+  { id: 'inventory', labelKey: 'inventory', icon: Warehouse, roles: ['super_admin', 'admin', 'storekeeper', 'accountant'] },
+  { id: 'purchases', labelKey: 'purchases', icon: Truck, roles: ['super_admin', 'admin', 'storekeeper', 'accountant'] },
+  { id: 'customers', labelKey: 'customers', icon: Users, roles: ['super_admin', 'admin', 'cashier', 'accountant'] },
+  { id: 'suppliers', labelKey: 'suppliers', icon: Building2, roles: ['super_admin', 'admin', 'accountant'] },
+  { id: 'cashbook', labelKey: 'cashbook', icon: Wallet, roles: ['super_admin', 'admin', 'cashier', 'accountant'] },
+  { id: 'reports', labelKey: 'reports', icon: FileSpreadsheet, roles: ['super_admin', 'admin', 'accountant'] },
+  { id: 'settings', labelKey: 'settings', icon: Settings, roles: ['super_admin', 'admin'] },
+  { id: 'developer', labelKey: 'developerConsole', icon: Server, roles: ['super_admin'] },
 ];
 
 export const Sidebar: React.FC<Props> = ({ currentScreen, onSelectScreen }) => {

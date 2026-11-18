@@ -202,6 +202,35 @@ export const LoginPage: React.FC = () => {
                 Click to load
               </span>
             </div>
+
+            {/* Software Owner / Super Admin Card */}
+            <button
+              type="button"
+              onClick={() => setDemoRole('superadmin', 'superadmin123')}
+              className={`w-full mb-2 p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
+                username === 'superadmin'
+                  ? 'border-amber-500 bg-amber-50/80 dark:bg-amber-950/40 ring-1 ring-amber-500'
+                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0">
+                  ★
+                </div>
+                <div className="min-w-0">
+                  <div className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                    {language === 'np' ? 'सुपर एडमिन (सफ्टवेयर ओनर)' : 'Super Admin (Software Owner)'}
+                  </div>
+                  <div className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate">
+                    {language === 'np' ? 'डेभलपर कन्सोल सहित सम्पूर्ण पहुँच' : 'Full Platform & Developer Console Access'}
+                  </div>
+                </div>
+              </div>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono shrink-0 ml-2">
+                superadmin / superadmin123
+              </span>
+            </button>
+
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 type="button"

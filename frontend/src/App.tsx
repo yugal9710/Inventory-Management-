@@ -49,6 +49,9 @@ const AppContent: React.FC = () => {
       case 'settings':
         return <Settings />;
       case 'developer':
+        if (currentUser.role !== 'super_admin') {
+          return <Dashboard onNavigate={(screen) => setCurrentScreen(screen)} />;
+        }
         return <DeveloperControlPanel onSwitchTenant={() => setCurrentScreen('dashboard')} />;
       default:
         return <Dashboard onNavigate={(screen) => setCurrentScreen(screen)} />;

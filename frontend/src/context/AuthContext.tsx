@@ -12,6 +12,7 @@ interface AuthContextType {
 }
 
 const defaultUsers: Record<UserRole, User> = {
+  super_admin: { id: 5, username: 'superadmin', full_name: 'Anaya Craft (Software Owner)', role: 'super_admin', phone: '9851087654', active: 1 },
   admin: { id: 1, username: 'admin', full_name: 'Dinesh Sharma (Owner)', role: 'admin', phone: '9851087654', active: 1 },
   cashier: { id: 2, username: 'cashier', full_name: 'Suman Thapa (Cashier)', role: 'cashier', phone: '9841234567', active: 1 },
   storekeeper: { id: 3, username: 'storekeeper', full_name: 'Bikash Tamang (Storekeeper)', role: 'storekeeper', phone: '9812345678', active: 1 },

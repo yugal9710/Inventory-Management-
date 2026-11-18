@@ -27,7 +27,7 @@ function initSchema() {
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       full_name TEXT NOT NULL,
-      role TEXT CHECK(role IN ('admin', 'cashier', 'storekeeper', 'accountant')) NOT NULL,
+      role TEXT CHECK(role IN ('super_admin', 'admin', 'cashier', 'storekeeper', 'accountant')) NOT NULL,
       phone TEXT,
       active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -468,6 +468,7 @@ function initSchema() {
     `);
 
     // In a real app we hash passwords; for local demo we provide clean standard access
+    insertUser.run({ username: 'superadmin', password_hash: 'superadmin123', full_name: 'Anaya Craft (Software Owner)', role: 'super_admin', phone: '9851087654' });
     insertUser.run({ username: 'admin', password_hash: 'admin123', full_name: 'Dinesh Sharma (Owner)', role: 'admin', phone: '9851087654' });
     insertUser.run({ username: 'cashier', password_hash: 'cashier123', full_name: 'Suman Thapa (Cashier)', role: 'cashier', phone: '9841234567' });
     insertUser.run({ username: 'storekeeper', password_hash: 'store123', full_name: 'Bikash Tamang (Storekeeper)', role: 'storekeeper', phone: '9812345678' });

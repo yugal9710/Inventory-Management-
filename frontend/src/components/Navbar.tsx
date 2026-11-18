@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Globe, UserCheck, Banknote, LogOut } from 'lucide-react';
+import { Calendar, Globe, Banknote, LogOut } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { UserRole, CashSession } from '../types';
+import { CashSession } from '../types';
 import { getTodayBs, formatBsDate } from '../utils/nepaliCalendar';
 import { formatNpr } from '../utils/formatters';
 import ThemeSwitcher from './Common/ThemeSwitcher';
 
 export const Navbar: React.FC = () => {
   const { language, setLanguage } = useLanguage();
-  const { currentUser, switchRole, logout } = useAuth();
+  const { logout } = useAuth();
   const [cashSession, setCashSession] = useState<CashSession | null>(null);
   const [activeFy, setActiveFy] = useState<string>('2081/82');
 
@@ -61,7 +61,7 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* Center/Right Info: BS Date & Cash Drawer Float & Role Switcher */}
+      {/* Center/Right Info: BS Date & Cash Drawer Float & Controls */}
       <div className="flex items-center gap-2 md:gap-3">
         {/* Today Bikram Sambat Date */}
         <div className="hidden sm:flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 rounded-lg px-3 py-1.5 text-xs text-slate-200">
@@ -87,23 +87,6 @@ export const Navbar: React.FC = () => {
             </span>
           )}
         </div>
-
-        {/* User Role Selector */}
-        {currentUser && (
-          <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 rounded-lg p-1 text-xs">
-            <UserCheck className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
-            <select
-              value={currentUser.role}
-              onChange={(e) => switchRole(e.target.value as UserRole)}
-              className="bg-transparent text-slate-200 font-semibold text-xs focus:outline-none cursor-pointer pr-1"
-            >
-              <option value="admin" className="bg-slate-900 text-white">Owner / Admin</option>
-              <option value="cashier" className="bg-slate-900 text-white">Cashier (काउन्टर)</option>
-              <option value="storekeeper" className="bg-slate-900 text-white">Storekeeper (गोदाम)</option>
-              <option value="accountant" className="bg-slate-900 text-white">Accountant (लेखापाल)</option>
-            </select>
-          </div>
-        )}
 
         {/* Language Switcher */}
         <button
