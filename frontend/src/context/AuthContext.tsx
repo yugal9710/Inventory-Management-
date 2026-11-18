@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 
 interface AuthContextType {
-  currentUser: User;
+  currentUser: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  login: (username: string, password: string) => Promise<{ success: boolean; message?: string; user?: User }>;
+  logout: () => void;
   switchRole: (role: UserRole) => void;
   canAccess: (allowedRoles: UserRole[]) => boolean;
 }
@@ -17,18 +21,106 @@ const defaultUsers: Record<UserRole, User> = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User>(defaultUsers.admin);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const savedUser = localStorage.getItem('iron_store_user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (e) {
+      console.warn('Failed to parse saved user from localStorage', e);
+      return null;
+    }
+  });
+
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('iron_store_token') || null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Keep localStorage in sync
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('iron_store_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('iron_store_user');
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('iron_store_token', token);
+    } else {
+      localStorage.removeItem('iron_store_token');
+    }
+  }, [token]);
+
+  const login = async (username: string, password: string): Promise<{ success: boolean; message?: string; user?: User }> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          message: data.message || 'Invalid username or password',
+        };
+      }
+
+      const authenticatedUser: User = data.user;
+      setCurrentUser(authenticatedUser);
+      setToken(data.token);
+
+      return {
+        success: true,
+        user: authenticatedUser,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Unable to connect to authentication server.',
+      };
+    }
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    setToken(null);
+    localStorage.removeItem('iron_store_user');
+    localStorage.removeItem('iron_store_token');
+  };
 
   const switchRole = (role: UserRole) => {
-    setCurrentUser(defaultUsers[role]);
+    const roleUser = defaultUsers[role];
+    if (roleUser) {
+      setCurrentUser(roleUser);
+    }
   };
 
   const canAccess = (allowedRoles: UserRole[]): boolean => {
+    if (!currentUser) return false;
     return allowedRoles.includes(currentUser.role);
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, switchRole, canAccess }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        token,
+        isAuthenticated: !!currentUser,
+        login,
+        logout,
+        switchRole,
+        canAccess,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

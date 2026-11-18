@@ -96,14 +96,14 @@ export const Sidebar: React.FC<Props> = ({ currentScreen, onSelectScreen }) => {
       <div className="p-4 border-t border-slate-800 bg-slate-950/60">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-orange-500 text-xs">
-            {currentUser.full_name.charAt(0)}
+            {currentUser?.full_name?.charAt(0) || 'U'}
           </div>
           <div className="truncate">
             <div className="text-xs font-semibold text-slate-200 truncate">
-              {currentUser.full_name}
+              {currentUser?.full_name || 'Authorized User'}
             </div>
             <div className="text-[10px] text-orange-400 font-medium uppercase tracking-wider">
-              {currentUser.role}
+              {currentUser?.role || ''}
             </div>
           </div>
         </div>

@@ -1,69 +1,30 @@
 import React from 'react';
 
 /**
- * Anaya Craft Official Tech Emblem & Logo ("AC")
- * Dynamic interlocking letters 'A' and 'C' with industrial steel styling & neon accents
+ * Anaya Craft Official Tech Emblem Monogram ("AC")
  */
 export function AnayaCraftEmblem({ size = 48, className = '' }: { size?: number; className?: string }) {
   return (
     <div
       style={{ width: size, height: size }}
-      className={`bg-slate-900 rounded-2xl p-1.5 shadow-md border border-slate-700 flex items-center justify-center shrink-0 relative select-none group ${className}`}
+      className={`bg-white dark:bg-slate-900 rounded-2xl p-1 shadow-sm border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center shrink-0 relative select-none group ${className}`}
     >
-      <svg
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full transform transition-transform duration-300 group-hover:scale-105"
-      >
-        <defs>
-          <linearGradient id="acGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f97316" />
-            <stop offset="100%" stopColor="#ea580c" />
-          </linearGradient>
-          <linearGradient id="acGrad2" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#38bdf8" />
-            <stop offset="100%" stopColor="#0284c7" />
-          </linearGradient>
-          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
-        </defs>
-
-        {/* Outer Hexagon / Shield Frame */}
-        <polygon
-          points="50,6 92,28 92,72 50,94 8,72 8,28"
-          stroke="url(#acGrad2)"
-          strokeWidth="4"
-          fill="#0f172a"
-        />
-
-        {/* Dynamic Stylized 'A' */}
-        <path
-          d="M 50 20 L 72 74 L 60 74 L 54 58 L 46 58 L 40 74 L 28 74 Z"
-          fill="url(#acGrad1)"
-        />
-        {/* Inner 'A' Notch */}
-        <polygon points="50,34 56,50 44,50" fill="#0f172a" />
-
-        {/* Interlocking 'C' Ring Arc */}
-        <path
-          d="M 68 40 A 28 28 0 1 0 68 64"
-          stroke="url(#acGrad2)"
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
-
-        {/* Tech Corner Accent Points */}
-        <circle cx="50" cy="6" r="3" fill="#38bdf8" />
-        <circle cx="92" cy="28" r="3" fill="#f97316" />
-        <circle cx="8" cy="72" r="3" fill="#38bdf8" />
-      </svg>
+      <img
+        src="/anaya-craft-icon.png"
+        alt="Anaya Craft"
+        className="w-full h-full object-contain select-none transition-transform duration-300 group-hover:scale-105"
+        onError={(e) => {
+          // Fallback to SVG if image file not loaded
+          e.currentTarget.style.display = 'none';
+        }}
+      />
     </div>
   );
 }
 
+/**
+ * Decorative Tech Graphic Elements (Corner dot matrices, circuit-traces, pin node)
+ */
 export function AnayaCraftTechDecor() {
   return (
     <>
@@ -97,22 +58,101 @@ export function AnayaCraftTechDecor() {
   );
 }
 
-export default function AnayaCraftLogo({ className = '' }: { className?: string }) {
+/**
+ * Anaya Craft Official High-Resolution Branding Card
+ */
+export function AnayaCraftBrandCard({ className = '', size = 'md' }: { className?: string; size?: 'sm' | 'md' | 'lg' }) {
+  const isSm = size === 'sm';
+  const isLg = size === 'lg';
+
+  const iconHeight = isSm ? 'h-8' : isLg ? 'h-14' : 'h-10';
+  const titleSize = isSm ? 'text-xs' : isLg ? 'text-lg' : 'text-sm';
+  const tagPrimary = isSm ? 'text-[8.5px]' : isLg ? 'text-[11px]' : 'text-[9.5px]';
+  const tagSecondary = isSm ? 'text-[7px]' : isLg ? 'text-[9px]' : 'text-[7.5px]';
+  const bannerWidth = isSm ? 'max-w-[170px]' : isLg ? 'max-w-[260px]' : 'max-w-[215px]';
+
   return (
-    <div className={`flex items-center space-x-3 ${className}`}>
-      <AnayaCraftEmblem size={44} />
-      <div className="flex flex-col">
-        <div className="flex items-center space-x-1.5">
-          <span className="font-black text-slate-900 tracking-tight text-base">ANAYA</span>
-          <span className="font-black text-orange-600 tracking-tight text-base">CRAFT</span>
-          <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded-sm bg-orange-100 text-orange-800 font-bold border border-orange-200">
-            PLATFORM
-          </span>
-        </div>
-        <span className="text-[10px] text-slate-500 font-medium tracking-wide">
-          Cloud Steel & Hardware Infrastructure
+    <div className={`flex flex-col items-center justify-center text-center select-none py-1 group ${className}`}>
+      {/* 3D Ribbon / Origami Monogram */}
+      <img
+        src="/anaya-craft-icon.png"
+        alt="Anaya Craft"
+        className={`${iconHeight} w-auto object-contain transition-transform duration-300 group-hover:scale-105 select-none drop-shadow-xs`}
+        loading="eager"
+      />
+
+      {/* Brand Name Typography */}
+      <div className={`mt-1 flex items-center justify-center space-x-1 leading-none ${titleSize}`}>
+        <span className="font-extrabold text-[#0072E5] tracking-tight">Anaya</span>
+        <span className="font-black text-[#0F1C3F] dark:text-slate-100 tracking-tight">Craft</span>
+      </div>
+
+      {/* Vibrant Orange Tagline Banner with High Contrast */}
+      <div className={`mt-1.5 w-full ${bannerWidth} bg-gradient-to-r from-orange-500 via-amber-600 to-orange-600 text-white rounded-lg px-2.5 py-1 shadow-xs flex flex-col items-center justify-center border border-orange-400/40`}>
+        <span className={`${tagPrimary} font-black uppercase tracking-wider text-white leading-tight drop-shadow-xs whitespace-nowrap`}>
+          ALL KINDS OF IT SOLUTIONS
+        </span>
+        <span className={`${tagSecondary} font-bold uppercase tracking-widest text-amber-100 leading-tight mt-0.5 whitespace-nowrap`}>
+          TECHNOLOGY • BUILT AROUND YOU
         </span>
       </div>
     </div>
   );
 }
+
+export interface AnayaCraftLogoProps {
+  variant?: 'card' | 'brand-card' | 'horizontal' | 'stacked' | 'emblem';
+  size?: 'sm' | 'md' | 'lg';
+  theme?: 'light' | 'dark';
+  className?: string;
+}
+
+/**
+ * Anaya Craft Complete Component
+ */
+export function AnayaCraftLogo({
+  variant = 'brand-card',
+  size = 'md',
+  theme = 'light',
+  className = ''
+}: AnayaCraftLogoProps) {
+  if (variant === 'card' || variant === 'brand-card' || variant === 'stacked') {
+    return <AnayaCraftBrandCard className={className} size={size} />;
+  }
+
+  if (variant === 'emblem') {
+    return <AnayaCraftEmblem size={size === 'sm' ? 36 : size === 'lg' ? 64 : 44} className={className} />;
+  }
+
+  const isDark = theme === 'dark';
+  const isSm = size === 'sm';
+  const isLg = size === 'lg';
+
+  return (
+    <div className={`flex items-center space-x-3 text-left select-none ${className}`}>
+      <img
+        src="/anaya-craft-icon.png"
+        alt="Anaya Craft"
+        className={`${isSm ? 'h-8' : isLg ? 'h-12' : 'h-10'} w-auto object-contain shrink-0 drop-shadow-xs`}
+      />
+
+      <div className="min-w-0 flex-1 leading-none space-y-1">
+        <div className={`tracking-tight ${isSm ? 'text-xs' : isLg ? 'text-lg' : 'text-sm'}`}>
+          <span className={`font-extrabold ${isDark ? 'text-blue-400' : 'text-[#0072E5]'}`}>Anaya</span>{' '}
+          <span className={`font-black ${isDark ? 'text-white' : 'text-[#0F1C3F]'}`}>Craft</span>
+        </div>
+
+        <div className="bg-gradient-to-r from-orange-500 via-amber-600 to-orange-600 text-white rounded-md px-2 py-0.5 inline-flex flex-col shadow-2xs">
+          <span className="text-[8.5px] font-black uppercase tracking-wider text-white leading-tight whitespace-nowrap">
+            ALL KINDS OF IT SOLUTIONS
+          </span>
+          <span className="text-[7px] font-bold uppercase tracking-widest text-amber-100 leading-tight mt-0.5 whitespace-nowrap">
+            TECHNOLOGY • BUILT AROUND YOU
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default AnayaCraftLogo;

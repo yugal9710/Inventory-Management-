@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LanguageProvider } from './context/LanguageContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar, ScreenId } from './components/Sidebar';
@@ -15,9 +15,16 @@ import { Cashbook } from './pages/Cashbook';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
 import DeveloperControlPanel from './components/Developer/DeveloperControlPanel';
+import { LoginPage } from './components/Auth/LoginPage';
 
 const AppContent: React.FC = () => {
+  const { currentUser } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<ScreenId>('dashboard');
+
+  // Strict Authentication Gate: require valid login before accessing any ERP modules
+  if (!currentUser) {
+    return <LoginPage />;
+  }
 
   const renderScreen = () => {
     switch (currentScreen) {
