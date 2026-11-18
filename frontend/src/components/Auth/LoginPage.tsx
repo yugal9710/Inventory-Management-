@@ -102,17 +102,9 @@ export const LoginPage: React.FC = () => {
             <div className="flex items-center gap-3 min-w-0">
               <AnayaCraftEmblem size={44} />
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h2 className="text-base sm:text-lg font-black tracking-tight text-white truncate">
-                    SHREE KRISHNA IRON
-                  </h2>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 font-bold border border-orange-500/30">
-                    ERP 2.0
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium truncate">
-                  {language === 'np' ? 'नेपाल फलाम, डण्डी तथा तौल पुल ईआरपी' : 'Nepal Steel, Rebar & Weighbridge System'}
-                </p>
+                <h2 className="text-base sm:text-lg font-black tracking-tight text-white truncate">
+                  {language === 'en' ? 'Iron Store ERP 2.0 Sign In' : 'फलाम तथा स्टिल ईआरपी २.० लगइन'}
+                </h2>
               </div>
             </div>
 
