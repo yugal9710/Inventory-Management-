@@ -431,7 +431,7 @@ router.post('/:id/payment/:paymentId/reverse', (req, res) => {
     const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
     if (!customer) return res.status(404).json({ success: false, error: 'Customer not found' });
 
-    const origPayment = db.prepare('SELECT * FROM payments WHERE id = ? AND party_id = ? AND party_type = "CUSTOMER"')
+    const origPayment = db.prepare("SELECT * FROM payments WHERE id = ? AND party_id = ? AND party_type = 'CUSTOMER'")
       .get(req.params.paymentId, customer.id);
     if (!origPayment) return res.status(404).json({ success: false, error: 'Payment voucher not found' });
 
