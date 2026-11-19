@@ -333,12 +333,15 @@ export const NewSale: React.FC = () => {
                 <option value="">-- Select Registered Customer --</option>
                 {customers.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.name} {c.pan_vat ? `(PAN: ${c.pan_vat})` : ''} - Bal: Rs. {c.current_balance}
+                    [{c.customer_code || `CUST-${String(c.id).padStart(4, '0')}`}] {c.name} {c.pan_vat ? `(PAN: ${c.pan_vat})` : ''} - Bal: Rs. {c.current_balance}
                   </option>
                 ))}
               </select>
               {selectedCustomer && (
                 <div className="shrink-0 flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs">
+                  <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 text-[11px]">
+                    {selectedCustomer.customer_code || `CUST-${String(selectedCustomer.id).padStart(4, '0')}`}
+                  </span>
                   <span className="text-slate-500">Khata:</span>
                   <span className={`font-mono font-bold ${selectedCustomer.current_balance > 0 ? 'text-red-600' : 'text-emerald-700'}`}>
                     {formatNpr(selectedCustomer.current_balance)}

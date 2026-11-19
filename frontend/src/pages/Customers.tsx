@@ -18,11 +18,17 @@ import {
   CheckSquare,
   Square,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  RotateCcw,
+  Calendar,
+  Hash,
+  RefreshCw,
+  Tag
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { Customer } from '../types';
 import { formatNpr } from '../utils/formatters';
+import { getTodayBs } from '../utils/nepaliCalendar';
 import NepalAddressFields, {
   NepalLocation,
   EMPTY_NEPAL_LOCATION,
@@ -43,6 +49,7 @@ export const Customers: React.FC = () => {
   const [editingCustomerId, setEditingCustomerId] = useState<number | null>(null);
 
   const initialFormState = {
+    customer_code: '',
     name: '',
     customer_type: 'Contractor',
     contact_person: '',
@@ -64,9 +71,12 @@ export const Customers: React.FC = () => {
   // Record Payment Voucher Modal (जम्मा भौचर)
   const [showPayModal, setShowPayModal] = useState(false);
   const [payAmount, setPayAmount] = useState<number>(0);
+  const [payDateBs, setPayDateBs] = useState<string>('');
   const [payMethod, setPayMethod] = useState<'CASH' | 'BANK_TRANSFER' | 'QR_FONEPAY' | 'CHEQUE'>('CASH');
   const [payRef, setPayRef] = useState<string>('');
+  const [payInvoiceId, setPayInvoiceId] = useState<string>('');
   const [payNotes, setPayNotes] = useState<string>('');
+  const [submittingPay, setSubmittingPay] = useState(false);
 
   const loadCustomers = async () => {
     setLoading(true);
@@ -97,13 +107,28 @@ export const Customers: React.FC = () => {
     }
   };
 
-  // Open modal in create mode
-  const handleOpenCreateModal = () => {
+  // Open modal in create mode with auto-generated unique ID/Code
+  const handleOpenCreateModal = async () => {
     setEditingCustomerId(null);
-    setCustomerForm(initialFormState);
     setPermanentLocation(EMPTY_NEPAL_LOCATION);
     setTemporaryLocation(EMPTY_NEPAL_LOCATION);
     setSameAsPermanent(true);
+
+    let nextCode = 'CUST-0001';
+    try {
+      const res = await fetch('/api/customers/next-code');
+      const data = await res.json();
+      if (data.success && data.nextCode) {
+        nextCode = data.nextCode;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch next customer code:', e);
+    }
+
+    setCustomerForm({
+      ...initialFormState,
+      customer_code: nextCode
+    });
     setShowAddModal(true);
   };
 
@@ -111,6 +136,7 @@ export const Customers: React.FC = () => {
   const handleOpenEditModal = (cust: any) => {
     setEditingCustomerId(cust.id);
     setCustomerForm({
+      customer_code: cust.customer_code || `CUST-${String(cust.id).padStart(4, '0')}`,
       name: cust.name || '',
       customer_type: cust.customer_type || 'Contractor',
       contact_person: cust.contact_person || '',
@@ -224,20 +250,28 @@ export const Customers: React.FC = () => {
     }
   };
 
+  // Record Payment Voucher
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCustomer || payAmount <= 0) return;
+    if (!selectedCustomer) return;
+    if (payAmount <= 0) {
+      alert(language === 'np' ? 'कृपया ० भन्दा बढी रकम प्रविष्ट गर्नुहोस् ।' : 'Please enter a payment amount greater than 0.');
+      return;
+    }
 
+    setSubmittingPay(true);
     try {
       const res = await fetch(`/api/customers/${selectedCustomer.id}/payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: payAmount,
+          date_bs: payDateBs || getTodayBs(),
           method: payMethod,
           referenceNumber: payRef,
+          invoice_id: payInvoiceId ? Number(payInvoiceId) : null,
           notes: payNotes,
-          userId: 2
+          userId: 1
         })
       });
       const data = await res.json();
@@ -246,19 +280,53 @@ export const Customers: React.FC = () => {
         setPayAmount(0);
         setPayRef('');
         setPayNotes('');
-        viewCustomerStatement(selectedCustomer.id);
-        loadCustomers();
+        setPayInvoiceId('');
+        await viewCustomerStatement(selectedCustomer.id);
+        await loadCustomers();
       } else {
-        alert(data.error);
+        alert(data.error || 'Failed to record payment');
       }
     } catch (err: any) {
       alert(err.message);
+    } finally {
+      setSubmittingPay(false);
+    }
+  };
+
+  // Reverse / Audit Adjustment Voucher
+  const handleReversePayment = async (paymentId: number) => {
+    const reason = window.prompt(
+      language === 'np'
+        ? 'भौचर रद्द/समायोजन गर्नुको कारण खुलाउनुहोस् (Audit Reason):'
+        : 'Reason for payment voucher reversal / audit adjustment:'
+    );
+    if (reason === null) return; // User cancelled
+
+    try {
+      const res = await fetch(`/api/customers/${selectedCustomer.id}/payment/${paymentId}/reverse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: reason || 'Audit reversal by authorized user',
+          userId: 1
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await viewCustomerStatement(selectedCustomer.id);
+        await loadCustomers();
+      } else {
+        alert(data.error || 'Failed to reverse voucher');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error processing reversal');
     }
   };
 
   const filtered = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
+      (c.customer_code && c.customer_code.toLowerCase().includes(search.toLowerCase())) ||
       (c.phone && c.phone.includes(search)) ||
       (c.pan_vat && c.pan_vat.includes(search)) ||
       (c.address && c.address.toLowerCase().includes(search.toLowerCase()))
@@ -329,6 +397,9 @@ export const Customers: React.FC = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/80">
+                            {c.customer_code || `CUST-${String(c.id).padStart(4, '0')}`}
+                          </span>
                           <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{c.name}</h4>
                           {c.customer_type && (
                             <span className="text-[9.5px] px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold border border-slate-200 dark:border-slate-700">
@@ -375,10 +446,13 @@ export const Customers: React.FC = () => {
         <div className="lg:col-span-7">
           {selectedCustomer ? (
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs p-5 space-y-4">
-              {/* Header Profile with Edit Button */}
+              {/* Header Profile with Edit Button & Record Payment Button */}
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                      {selectedCustomer.customer_code || `CUST-${String(selectedCustomer.id).padStart(4, '0')}`}
+                    </span>
                     <h3 className="font-black text-lg text-slate-900 dark:text-slate-100">{selectedCustomer.name}</h3>
                     {selectedCustomer.customer_type && (
                       <span className="text-xs px-2 py-0.5 rounded-lg bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 font-bold border border-orange-200 dark:border-orange-800">
@@ -451,67 +525,131 @@ export const Customers: React.FC = () => {
                   <button
                     onClick={() => {
                       setPayAmount(Math.max(0, selectedCustomer.current_balance));
+                      setPayDateBs(getTodayBs());
+                      setPayMethod('CASH');
+                      setPayRef('');
+                      setPayInvoiceId('');
+                      setPayNotes('');
                       setShowPayModal(true);
                     }}
                     className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition cursor-pointer"
                   >
                     <Receipt className="w-4 h-4" />
-                    <span>Record Payment</span>
+                    <span>Record Payment (जम्मा भौचर)</span>
                   </button>
                 </div>
               </div>
 
-              {/* Balance Summary Cards */}
+              {/* Balance Summary Cards: Consistent Two Decimal Places */}
               <div className="grid grid-cols-3 gap-3 text-xs">
-                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Total Invoiced</span>
-                  <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm">
+                {/* Total Invoiced */}
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+                  <span className="text-slate-500 dark:text-slate-400 block text-[11px] font-semibold">Total Invoiced</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-base block mt-0.5">
                     {formatNpr(selectedCustomer.total_invoiced)}
                   </span>
+                  {selectedCustomer.opening_balance > 0 && (
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-1 font-mono">
+                      + Opening Bal: {formatNpr(selectedCustomer.opening_balance)}
+                    </span>
+                  )}
                 </div>
-                <div className="bg-emerald-50/80 dark:bg-emerald-950/40 p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/60">
-                  <span className="text-emerald-700 dark:text-emerald-400 block text-[11px]">Total Payments</span>
-                  <span className="font-mono font-bold text-emerald-800 dark:text-emerald-300 text-sm">
+
+                {/* Total Payments */}
+                <div className="bg-emerald-50/80 dark:bg-emerald-950/40 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 shadow-2xs">
+                  <span className="text-emerald-700 dark:text-emerald-400 block text-[11px] font-semibold">Total Payments</span>
+                  <span className="font-mono font-bold text-emerald-800 dark:text-emerald-300 text-base block mt-0.5">
                     {formatNpr(selectedCustomer.total_paid)}
                   </span>
+                  <span className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 block mt-1 font-mono">
+                    {selectedCustomer.payments?.length || 0} Vouchers Settled
+                  </span>
                 </div>
-                <div className="bg-rose-50/80 dark:bg-rose-950/40 p-3 rounded-xl border border-rose-200 dark:border-rose-900/60">
-                  <span className="text-rose-700 dark:text-rose-400 block text-[11px]">Outstanding Balance</span>
-                  <span className="font-mono font-black text-rose-700 dark:text-rose-300 text-sm">
+
+                {/* Outstanding Balance */}
+                <div className="bg-rose-50/80 dark:bg-rose-950/40 p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/60 shadow-2xs">
+                  <span className="text-rose-700 dark:text-rose-400 block text-[11px] font-semibold">Outstanding Balance</span>
+                  <span className="font-mono font-black text-rose-700 dark:text-rose-300 text-base block mt-0.5">
                     {formatNpr(selectedCustomer.current_balance)}
+                  </span>
+                  <span className="text-[10px] text-rose-600/70 dark:text-rose-400/70 block mt-1 font-mono">
+                    {selectedCustomer.current_balance <= 0 ? '✓ Fully Cleared / Advance' : 'Due for Settlement'}
                   </span>
                 </div>
               </div>
 
-              {/* Invoices History Table */}
+              {/* INVOICES HISTORY */}
               <div>
-                <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                  Invoices History
-                </h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Invoices History
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {selectedCustomer.invoices?.length || 0} Invoices Issued
+                  </span>
+                </div>
                 <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto max-h-[220px]">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold sticky top-0">
                       <tr>
-                        <th className="p-2">Invoice No</th>
-                        <th className="p-2">Date (BS)</th>
-                        <th className="p-2 text-right">Total</th>
-                        <th className="p-2 text-right">Paid</th>
-                        <th className="p-2 text-right">Balance</th>
+                        <th className="p-2.5">Invoice No</th>
+                        <th className="p-2.5">Date (BS)</th>
+                        <th className="p-2.5 text-right">Total</th>
+                        <th className="p-2.5 text-right">Paid</th>
+                        <th className="p-2.5 text-right">Balance</th>
+                        <th className="p-2.5 text-center">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
-                      {selectedCustomer.invoices?.length === 0 ? (
+                      {/* Opening Balance Row if present */}
+                      {selectedCustomer.opening_balance > 0 && (
+                        <tr className="bg-amber-50/30 dark:bg-amber-950/20 font-medium">
+                          <td className="p-2.5 font-mono font-bold text-amber-800 dark:text-amber-400">
+                            OPENING-BALANCE
+                          </td>
+                          <td className="p-2.5 font-mono text-slate-500">2083-01-01</td>
+                          <td className="p-2.5 text-right font-mono font-semibold">
+                            {formatNpr(selectedCustomer.opening_balance)}
+                          </td>
+                          <td className="p-2.5 text-right font-mono text-emerald-600 dark:text-emerald-400">
+                            {formatNpr(Math.max(0, Math.min(selectedCustomer.opening_balance, selectedCustomer.total_paid)))}
+                          </td>
+                          <td className="p-2.5 text-right font-mono font-bold text-amber-700 dark:text-amber-400">
+                            {formatNpr(Math.max(0, selectedCustomer.opening_balance - selectedCustomer.total_paid))}
+                          </td>
+                          <td className="p-2.5 text-center">
+                            <span className="text-[9.5px] px-1.5 py-0.5 rounded font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                              OPENING
+                            </span>
+                          </td>
+                        </tr>
+                      )}
+
+                      {(!selectedCustomer.invoices || selectedCustomer.invoices.length === 0) && selectedCustomer.opening_balance <= 0 ? (
                         <tr>
-                          <td colSpan={5} className="p-4 text-center text-slate-400 text-xs">No invoices issued yet</td>
+                          <td colSpan={6} className="p-4 text-center text-slate-400 text-xs">
+                            No invoices issued yet
+                          </td>
                         </tr>
                       ) : (
                         selectedCustomer.invoices?.map((inv: any) => (
                           <tr key={inv.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                            <td className="p-2 font-mono font-bold text-slate-800 dark:text-slate-100">{inv.invoice_no}</td>
-                            <td className="p-2 font-mono text-slate-600 dark:text-slate-400">{inv.date_bs}</td>
-                            <td className="p-2 text-right font-mono font-semibold">{formatNpr(inv.total_amount)}</td>
-                            <td className="p-2 text-right font-mono text-emerald-600 dark:text-emerald-400">{formatNpr(inv.amount_paid)}</td>
-                            <td className="p-2 text-right font-mono font-bold text-rose-600 dark:text-rose-400">{formatNpr(inv.balance_due)}</td>
+                            <td className="p-2.5 font-mono font-bold text-slate-800 dark:text-slate-100">{inv.invoice_no}</td>
+                            <td className="p-2.5 font-mono text-slate-600 dark:text-slate-400">{inv.date_bs}</td>
+                            <td className="p-2.5 text-right font-mono font-semibold">{formatNpr(inv.total_amount)}</td>
+                            <td className="p-2.5 text-right font-mono text-emerald-600 dark:text-emerald-400">{formatNpr(inv.amount_paid)}</td>
+                            <td className="p-2.5 text-right font-mono font-bold text-rose-600 dark:text-rose-400">{formatNpr(inv.balance_due)}</td>
+                            <td className="p-2.5 text-center">
+                              <span className={`text-[9.5px] px-2 py-0.5 rounded font-bold border ${
+                                inv.payment_status === 'PAID' || inv.balance_due <= 0
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                  : inv.amount_paid > 0
+                                  ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                  : 'bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                              }`}>
+                                {inv.balance_due <= 0 ? 'PAID' : inv.amount_paid > 0 ? 'PARTIAL' : 'UNPAID'}
+                              </span>
+                            </td>
                           </tr>
                         ))
                       )}
@@ -520,35 +658,118 @@ export const Customers: React.FC = () => {
                 </div>
               </div>
 
-              {/* Payments History Table */}
+              {/* RECEIPTS & PAYMENT HISTORY */}
               <div>
-                <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                  Receipts & Payment History (जम्मा भौचर)
-                </h4>
-                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto max-h-[200px]">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Receipts & Payment History (जम्मा विवरण)
+                  </h4>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Auditable Ledger • Reversals Recorded as Adjustments
+                  </span>
+                </div>
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto max-h-[220px]">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold sticky top-0">
                       <tr>
-                        <th className="p-2">Date (BS)</th>
-                        <th className="p-2">Method</th>
-                        <th className="p-2">Reference</th>
-                        <th className="p-2 text-right">Amount</th>
+                        <th className="p-2.5">Date (BS)</th>
+                        <th className="p-2.5">Method</th>
+                        <th className="p-2.5">Reference / Invoice Allocation</th>
+                        <th className="p-2.5 text-right">Amount</th>
+                        <th className="p-2.5 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
-                      {selectedCustomer.payments?.length === 0 ? (
+                      {!selectedCustomer.payments || selectedCustomer.payments.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="p-4 text-center text-slate-400 text-xs">No payment vouchers recorded yet</td>
+                          <td colSpan={5} className="p-4 text-center text-slate-400 text-xs">
+                            No payment vouchers recorded yet
+                          </td>
                         </tr>
                       ) : (
-                        selectedCustomer.payments?.map((pay: any) => (
-                          <tr key={pay.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                            <td className="p-2 font-mono text-slate-600 dark:text-slate-400">{pay.date_bs}</td>
-                            <td className="p-2 font-semibold">{pay.method}</td>
-                            <td className="p-2 font-mono text-slate-500">{pay.reference_number || '-'}</td>
-                            <td className="p-2 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">{formatNpr(pay.amount)}</td>
-                          </tr>
-                        ))
+                        selectedCustomer.payments?.map((pay: any) => {
+                          const isReversalEntry = pay.amount < 0 || pay.is_reversal === 1;
+                          const isAlreadyReversed = pay.is_reversal === 2;
+
+                          return (
+                            <tr
+                              key={pay.id}
+                              className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/40 ${
+                                isReversalEntry
+                                  ? 'bg-rose-50/40 dark:bg-rose-950/20'
+                                  : isAlreadyReversed
+                                  ? 'opacity-60 bg-slate-50/40 dark:bg-slate-800/30 line-through'
+                                  : ''
+                              }`}
+                            >
+                              {/* Date & Voucher ID */}
+                              <td className="p-2.5 font-mono text-slate-700 dark:text-slate-300">
+                                <div className="font-bold">{pay.date_bs}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">VCH-#{pay.id}</div>
+                              </td>
+
+                              {/* Method */}
+                              <td className="p-2.5 font-semibold">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                  {pay.method}
+                                </span>
+                              </td>
+
+                              {/* Reference / Invoice Allocation */}
+                              <td className="p-2.5 text-slate-600 dark:text-slate-400">
+                                <div className="font-mono text-slate-800 dark:text-slate-200">
+                                  {pay.reference_number || '—'}
+                                </div>
+                                {pay.invoice_no && (
+                                  <div className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold font-mono">
+                                    Allocated: {pay.invoice_no}
+                                  </div>
+                                )}
+                                {pay.notes && (
+                                  <div className="text-[10.5px] text-slate-500 truncate max-w-xs">
+                                    {pay.notes}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Amount */}
+                              <td className="p-2.5 text-right font-mono font-bold text-sm">
+                                {isReversalEntry ? (
+                                  <span className="text-rose-600 dark:text-rose-400">
+                                    -{formatNpr(Math.abs(pay.amount))}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-600 dark:text-emerald-400">
+                                    +{formatNpr(pay.amount)}
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Action (Reversal / Adjustment) */}
+                              <td className="p-2.5 text-center">
+                                {!isReversalEntry && !isAlreadyReversed ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReversePayment(pay.id)}
+                                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 transition flex items-center gap-1 mx-auto cursor-pointer"
+                                    title="Record an audit adjustment / reversal voucher"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span>Reverse</span>
+                                  </button>
+                                ) : isAlreadyReversed ? (
+                                  <span className="text-[10px] text-slate-400 font-semibold italic">
+                                    Reversed
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold italic">
+                                    Adjustment
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -608,9 +829,47 @@ export const Customers: React.FC = () => {
                   <span>1. General & Contact Information (आधारभूत तथा सम्पर्क विवरण)</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  {/* Customer ID / Code (Auto-generated & Editable) */}
+                  <div className="sm:col-span-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        {language === 'np' ? 'ग्राहक कोड / आइडी' : 'Customer ID / Code'}
+                        <span className="text-rose-500 ml-0.5">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/customers/next-code');
+                            const data = await res.json();
+                            if (data.success && data.nextCode) {
+                              setCustomerForm(prev => ({ ...prev, customer_code: data.nextCode }));
+                            }
+                          } catch (e) {}
+                        }}
+                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
+                        title={language === 'np' ? 'अद्वितीय कोड पुनः सिर्जना गर्नुहोस्' : 'Regenerate next unique code'}
+                      >
+                        <RefreshCw className="w-2.5 h-2.5" />
+                        <span>{language === 'np' ? 'अटो जेनेरेट' : 'Auto Code'}</span>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. CUST-0012"
+                        value={customerForm.customer_code}
+                        onChange={(e) => setCustomerForm({ ...customerForm, customer_code: e.target.value.toUpperCase() })}
+                        className="w-full px-3 py-2 pl-8 border border-indigo-200 dark:border-indigo-800 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 font-mono font-bold text-indigo-700 dark:text-indigo-400 focus:ring-2 focus:ring-orange-500 outline-none uppercase"
+                      />
+                      <Hash className="w-3.5 h-3.5 text-indigo-500 absolute left-2.5 top-2.5" />
+                    </div>
+                  </div>
+
                   {/* Customer / Firm Name */}
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-5">
                     <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                       {language === 'np' ? 'ग्राहक वा फर्मको नाम' : 'Customer / Firm Name'}
                       <span className="text-rose-500 ml-0.5">*</span>
@@ -626,7 +885,7 @@ export const Customers: React.FC = () => {
                   </div>
 
                   {/* Customer Category */}
-                  <div>
+                  <div className="sm:col-span-3">
                     <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                       {language === 'np' ? 'ग्राहकको प्रकार' : 'Customer Category'}
                     </label>
@@ -886,20 +1145,21 @@ export const Customers: React.FC = () => {
         </div>
       )}
 
-      {/* Record Payment Voucher Modal */}
+      {/* Record Payment Voucher Modal (जम्मा भौचर) */}
       {showPayModal && selectedCustomer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100">
-                  {language === 'np' ? 'ग्राहक भुक्तानी रसिद (जम्मा भौचर)' : 'Customer Khata Payment Voucher'}
+                  {language === 'np' ? 'ग्राहक भुक्तानी रसिद (जम्मा भौचर)' : 'Record Payment (जम्मा भौचर)'}
                 </h3>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {selectedCustomer.name}
+                  {selectedCustomer.name} • Due: {formatNpr(selectedCustomer.current_balance)}
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setShowPayModal(false)}
                 className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold flex items-center justify-center cursor-pointer"
               >
@@ -908,9 +1168,10 @@ export const Customers: React.FC = () => {
             </div>
 
             <form onSubmit={handleRecordPayment} className="space-y-3 text-xs">
+              {/* Payment Amount */}
               <div>
                 <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Payment Amount (Rs) *
+                  Payment Amount (Rs) / जम्मा रकम *
                 </label>
                 <input
                   type="number"
@@ -919,13 +1180,33 @@ export const Customers: React.FC = () => {
                   step="any"
                   value={payAmount}
                   onChange={(e) => setPayAmount(Number(e.target.value))}
+                  placeholder="e.g. 35000"
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl font-mono font-black text-base text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
+              {/* Date in Bikram Sambat (BS) */}
               <div>
                 <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Payment Method *
+                  Date in Bikram Sambat (BS) / भौचर मिति (वि.सं.) *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    placeholder="YYYY-MM-DD (e.g. 2083-08-02)"
+                    value={payDateBs}
+                    onChange={(e) => setPayDateBs(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl font-mono font-semibold bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                </div>
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Payment Method / माध्यम *
                 </label>
                 <select
                   value={payMethod}
@@ -939,9 +1220,29 @@ export const Customers: React.FC = () => {
                 </select>
               </div>
 
+              {/* Invoice Allocation */}
               <div>
                 <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Reference / Cheque / Bank Txn No
+                  Invoice Allocation (बिल मिलान)
+                </label>
+                <select
+                  value={payInvoiceId}
+                  onChange={(e) => setPayInvoiceId(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
+                >
+                  <option value="">Auto: Allocate to Oldest Due Invoices / On Account</option>
+                  {selectedCustomer.invoices?.filter((inv: any) => inv.balance_due > 0).map((inv: any) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.invoice_no} ({inv.date_bs}) - Due: {formatNpr(inv.balance_due)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Reference / Cheque No */}
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Reference / Cheque / Bank Txn No (भौचर / चेक नं.)
                 </label>
                 <input
                   type="text"
@@ -952,13 +1253,14 @@ export const Customers: React.FC = () => {
                 />
               </div>
 
+              {/* Remarks / Notes */}
               <div>
                 <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Remarks / Notes
+                  Remarks / Notes (कैफियत)
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="e.g. Cleared bill #104 against Jagdamba Rebar delivery"
+                  placeholder="e.g. Received partial payment against steel delivery"
                   value={payNotes}
                   onChange={(e) => setPayNotes(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
@@ -975,9 +1277,10 @@ export const Customers: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/20 transition cursor-pointer"
+                  disabled={submittingPay}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50"
                 >
-                  Confirm & Post Voucher
+                  {submittingPay ? 'Posting...' : 'Confirm & Post Voucher'}
                 </button>
               </div>
             </form>

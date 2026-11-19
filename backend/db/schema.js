@@ -127,6 +127,7 @@ function initSchema() {
     -- Customers & Khata Credit Ledger
     CREATE TABLE IF NOT EXISTS customers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_code TEXT UNIQUE,
       name TEXT NOT NULL,
       phone TEXT,
       secondary_phone TEXT,
@@ -256,6 +257,9 @@ function initSchema() {
       date_ad TEXT NOT NULL,
       date_bs TEXT NOT NULL,
       reference_number TEXT, -- Transaction ID, cheque number
+      invoice_no TEXT,
+      is_reversal INTEGER DEFAULT 0,
+      reversed_payment_id INTEGER,
       notes TEXT,
       received_by INTEGER REFERENCES users(id),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -421,6 +425,7 @@ function initSchema() {
     { key: 'qr_account_name', value: 'SHREE KRISHNA IRON STORE' },
     { key: 'qr_account_number', value: '0102030405060708' },
     { key: 'qr_merchant_id', value: 'GLOBAL-NEPALPAY-8821' },
+    { key: 'customer_code_prefix', value: 'CUST-' },
   ];
 
   const insertSetting = db.prepare(`
@@ -480,6 +485,22 @@ function initSchema() {
     insertUser.run({ username: 'cashier', password_hash: 'cashier123', full_name: 'Suman Thapa (Cashier)', role: 'cashier', phone: '9841234567' });
     insertUser.run({ username: 'storekeeper', password_hash: 'store123', full_name: 'Bikash Tamang (Storekeeper)', role: 'storekeeper', phone: '9812345678' });
     insertUser.run({ username: 'accountant', password_hash: 'account123', full_name: 'Pooja Shrestha (Accountant)', role: 'accountant', phone: '9801234567' });
+  }
+
+  // Safe schema migration for customer_code
+  try {
+    const custCols = db.prepare('PRAGMA table_info(customers)').all().map(c => c.name);
+    if (!custCols.includes('customer_code')) {
+      db.exec('ALTER TABLE customers ADD COLUMN customer_code TEXT');
+    }
+    const unassigned = db.prepare("SELECT id FROM customers WHERE customer_code IS NULL OR customer_code = ''").all();
+    const updateCode = db.prepare('UPDATE customers SET customer_code = ? WHERE id = ?');
+    for (const c of unassigned) {
+      updateCode.run('CUST-' + String(c.id).padStart(4, '0'), c.id);
+    }
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_code ON customers(customer_code);');
+  } catch (migErr) {
+    console.warn('Customer code migration warning:', migErr.message);
   }
 
   console.log('✅ SQLite schema initialized successfully with Nepal IRD specifications.');

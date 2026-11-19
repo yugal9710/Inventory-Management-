@@ -92,6 +92,7 @@ export interface StockMovement {
 
 export interface Customer {
   id: number;
+  customer_code?: string;
   name: string;
   phone?: string;
   secondary_phone?: string;
