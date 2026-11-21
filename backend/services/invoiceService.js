@@ -86,6 +86,9 @@ class InvoiceService {
         if (!product) throw new Error(`Product ID ${item.productId} not found`);
 
         const qty = Number(item.quantity);
+        if (isNaN(qty) || qty <= 0) {
+          throw new Error(`Quantity for "${product.name_en}" must be a positive number greater than 0.`);
+        }
         const rate = Number(item.unitPrice || product.selling_price);
         const lineGross = qty * rate;
         const discountPct = Number(item.discountPercent || 0);
@@ -97,6 +100,15 @@ class InvoiceService {
 
         // Base unit conversion for stock ledger
         const { baseQuantity } = StockService.convertToBaseQuantity(product, qty, item.unit);
+
+        // Strict Stock Check: Do not allow a sale if requested quantity is greater than the available store stock
+        const stockRow = StockService.getStockBalance(product.id, item.locationId || null);
+        const availableStock = stockRow ? Number(stockRow.current_stock_base || 0) : 0;
+        if (baseQuantity > availableStock) {
+          throw new Error(
+            `Sale not allowed: Requested quantity for "${product.name_en}" (${qty} ${item.unit || product.base_unit}) is greater than available store stock (${availableStock} ${product.base_unit}).`
+          );
+        }
 
         let taxAmount = 0;
         if (product.tax_category === 'VAT_13') {

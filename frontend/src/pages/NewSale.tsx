@@ -102,13 +102,52 @@ export const NewSale: React.FC = () => {
   // Categories list
   const categories = ['ALL', 'TMT Rebar', 'Pipes & Hollow Sections', 'Corrugated & Plain Sheets', 'Angles & Channels', 'Wire & Nails', 'Cement & Aggregates', 'Hardware & Tools'];
 
-  // Add item to cart
+  // Convert line quantity in selected unit to product base units
+  const convertToBaseQty = (product: Product, qty: number, unit: string): number => {
+    if (!product || !qty) return 0;
+    if (unit === product.base_unit) return qty;
+    const conv = product.unit_conversions || {};
+    if (unit === 'piece' && conv.kg_per_piece) return qty * conv.kg_per_piece;
+    if (unit === 'bundle') {
+      if (conv.kg_per_bundle) return qty * conv.kg_per_bundle;
+      if (conv.pieces_per_bundle && conv.kg_per_piece) return qty * conv.pieces_per_bundle * conv.kg_per_piece;
+    }
+    if (unit === 'meter' && conv.kg_per_meter) return qty * conv.kg_per_meter;
+    if (unit === 'tonne') return qty * 1000;
+    if (unit === 'sheet' && conv.kg_per_sheet) return qty * conv.kg_per_sheet;
+    if (unit === 'packet' && conv.kg_per_packet) return qty * conv.kg_per_packet;
+    if (unit === 'box' && conv.pieces_per_box && conv.kg_per_piece) return qty * conv.pieces_per_box * conv.kg_per_piece;
+    return qty;
+  };
+
+  const getLineStockInfo = (line: SaleLine) => {
+    const product = products.find(p => p.id === line.product_id);
+    const availableStock = Number(product?.current_stock || 0);
+    const baseQty = product ? convertToBaseQty(product, line.quantity, line.unit) : line.quantity;
+    const isOverStock = baseQty > availableStock;
+    const baseUnit = product?.base_unit || 'kg';
+    return { product, availableStock, baseQty, isOverStock, baseUnit };
+  };
+
+  // Add item to cart with stock validation
   const addToCart = (product: Product) => {
+    const currentStock = Number(product.current_stock || 0);
+    if (currentStock <= 0) {
+      setErrorMsg(`Cannot add "${product.name_en}": Out of stock (0 ${product.base_unit} available in store).`);
+      return;
+    }
+
     // Check if already in cart
     const existingIdx = cart.findIndex(c => c.product_id === product.id && !c.is_cut_length);
     if (existingIdx >= 0) {
       const updated = [...cart];
-      updated[existingIdx].quantity += 1;
+      const nextQty = updated[existingIdx].quantity + 1;
+      const nextBase = convertToBaseQty(product, nextQty, updated[existingIdx].unit);
+      if (nextBase > currentStock) {
+        setErrorMsg(`Cannot increase quantity: Maximum available stock for "${product.name_en}" is ${currentStock} ${product.base_unit}.`);
+        return;
+      }
+      updated[existingIdx].quantity = nextQty;
       updated[existingIdx].line_total = Number((updated[existingIdx].quantity * updated[existingIdx].unit_price).toFixed(2));
       setCart(updated);
       return;
@@ -213,10 +252,34 @@ export const NewSale: React.FC = () => {
     }
   }, [grandTotal, paymentMethod]);
 
+  // Check stock errors across cart
+  const cartStockErrors = cart
+    .map((line, idx) => {
+      const info = getLineStockInfo(line);
+      if (info.isOverStock) {
+        return {
+          idx,
+          name: line.product_name,
+          requested: `${line.quantity} ${line.unit}`,
+          available: `${info.availableStock.toLocaleString()} ${info.baseUnit}`
+        };
+      }
+      return null;
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+
+  const hasStockError = cartStockErrors.length > 0;
+
   // Submit sale
   const handleSubmitSale = async () => {
     if (cart.length === 0) {
       setErrorMsg('Please add at least one item to cart');
+      return;
+    }
+
+    if (hasStockError) {
+      const err = cartStockErrors[0];
+      setErrorMsg(`Sale not allowed: Requested quantity for "${err.name}" (${err.requested}) is greater than available store stock (${err.available}).`);
       return;
     }
 
@@ -437,13 +500,18 @@ export const NewSale: React.FC = () => {
             {filteredProducts.map((product) => {
               const conversions = product.unit_conversions || {};
               const stock = product.current_stock || 0;
-              const isLow = stock <= product.reorder_level;
+              const isOut = stock <= 0;
+              const isLow = stock > 0 && stock <= product.reorder_level;
 
               return (
                 <div
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="bg-white p-3.5 rounded-xl border border-slate-200 hover:border-orange-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group"
+                  className={`bg-white p-3.5 rounded-xl border transition-all flex flex-col justify-between group ${
+                    isOut
+                      ? 'border-slate-200 opacity-60 cursor-not-allowed bg-slate-50/80'
+                      : 'border-slate-200 hover:border-orange-500 hover:shadow-md cursor-pointer'
+                  }`}
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
@@ -451,9 +519,13 @@ export const NewSale: React.FC = () => {
                         {product.code}
                       </span>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isLow ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800'
+                        isOut
+                          ? 'bg-slate-200 text-slate-600 font-semibold'
+                          : isLow
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-100 text-emerald-800'
                       }`}>
-                        Stock: {formatQty(stock, product.base_unit)}
+                        {isOut ? 'Out of Stock' : `Stock: ${formatQty(stock, product.base_unit)}`}
                       </span>
                     </div>
 
@@ -527,78 +599,138 @@ export const NewSale: React.FC = () => {
                   No materials added to bill. Click items from the catalog on the left to add.
                 </div>
               ) : (
-                cart.map((line, idx) => (
-                  <div key={idx} className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="font-bold text-slate-900">{line.product_name}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">
-                          {line.product_code} | {line.size || ''}
+                cart.map((line, idx) => {
+                  const { product, availableStock, baseQty, isOverStock, baseUnit } = getLineStockInfo(line);
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`border rounded-lg p-3 text-xs space-y-2 transition-all ${
+                        isOverStock
+                          ? 'bg-rose-50/70 border-rose-400 ring-1 ring-rose-400'
+                          : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-900">{line.product_name}</span>
+                            <span
+                              className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
+                                isOverStock
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-300 font-black'
+                                  : 'bg-slate-200/80 text-slate-700'
+                              }`}
+                            >
+                              Stock: {availableStock.toLocaleString()} {baseUnit}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono">
+                            {line.product_code} | {line.size || ''}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(idx)}
+                          className="text-slate-400 hover:text-red-600 p-1 rounded cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Quantity, Unit, Price, Discount Inputs */}
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="text-[10px] font-semibold text-slate-500 block">Quantity</label>
+                            {isOverStock && (
+                              <span className="text-[9px] font-mono font-black text-rose-600">
+                                Exceeded!
+                              </span>
+                            )}
+                          </div>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.1"
+                            value={line.quantity}
+                            onChange={(e) => updateCartLine(idx, { quantity: Number(e.target.value) || 0 })}
+                            className={`w-full px-2 py-1.5 border rounded font-mono font-bold transition-all ${
+                              isOverStock
+                                ? 'border-2 border-rose-500 bg-rose-50 text-rose-800 focus:ring-rose-500 ring-1 ring-rose-500'
+                                : 'border-slate-300 text-slate-900 focus:ring-1 focus:ring-orange-500'
+                            }`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Unit</label>
+                          <select
+                            value={line.unit}
+                            onChange={(e) => updateCartLine(idx, { unit: e.target.value })}
+                            className="w-full px-1.5 py-1.5 border border-slate-300 rounded font-semibold text-slate-900 bg-white"
+                          >
+                            <option value="kg">kg</option>
+                            <option value="piece">piece</option>
+                            <option value="bundle">bundle</option>
+                            <option value="meter">meter</option>
+                            <option value="tonne">tonne</option>
+                            <option value="sheet">sheet</option>
+                            <option value="packet">packet</option>
+                            <option value="box">box</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Rate (Rs)</label>
+                          <input
+                            type="number"
+                            step="any"
+                            value={line.unit_price}
+                            onChange={(e) => updateCartLine(idx, { unit_price: Number(e.target.value) || 0 })}
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded font-mono text-slate-900 focus:ring-1 focus:ring-orange-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Disc %</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={line.discount_percent}
+                            onChange={(e) => updateCartLine(idx, { discount_percent: Number(e.target.value) || 0 })}
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded font-mono text-slate-900 focus:ring-1 focus:ring-orange-500"
+                          />
                         </div>
                       </div>
-                      <button
-                        onClick={() => removeFromCart(idx)}
-                        className="text-slate-400 hover:text-red-600 p-1 rounded"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
 
-                    {/* Quantity, Unit, Price, Discount Inputs */}
-                    <div className="grid grid-cols-4 gap-2">
-                      <div>
-                        <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Quantity</label>
-                        <input
-                          type="number"
-                          step="any"
-                          min="0.1"
-                          value={line.quantity}
-                          onChange={(e) => updateCartLine(idx, { quantity: Number(e.target.value) || 0 })}
-                          className="w-full px-2 py-1.5 border border-slate-300 rounded font-mono font-semibold text-slate-900 focus:ring-1 focus:ring-orange-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Unit</label>
-                        <select
-                          value={line.unit}
-                          onChange={(e) => updateCartLine(idx, { unit: e.target.value })}
-                          className="w-full px-1.5 py-1.5 border border-slate-300 rounded font-semibold text-slate-900 bg-white"
-                        >
-                          <option value="kg">kg</option>
-                          <option value="piece">piece</option>
-                          <option value="bundle">bundle</option>
-                          <option value="meter">meter</option>
-                          <option value="tonne">tonne</option>
-                          <option value="sheet">sheet</option>
-                          <option value="packet">packet</option>
-                          <option value="box">box</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Rate (Rs)</label>
-                        <input
-                          type="number"
-                          step="any"
-                          value={line.unit_price}
-                          onChange={(e) => updateCartLine(idx, { unit_price: Number(e.target.value) || 0 })}
-                          className="w-full px-2 py-1.5 border border-slate-300 rounded font-mono text-slate-900 focus:ring-1 focus:ring-orange-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Disc %</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={line.discount_percent}
-                          onChange={(e) => updateCartLine(idx, { discount_percent: Number(e.target.value) || 0 })}
-                          className="w-full px-2 py-1.5 border border-slate-300 rounded font-mono text-slate-900 focus:ring-1 focus:ring-orange-500"
-                        />
-                      </div>
-                    </div>
+                      {/* Prominent Over-Stock Warning on Line Item */}
+                      {isOverStock && (
+                        <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-100/90 border border-rose-300 text-rose-800 text-[11px] font-bold animate-in fade-in">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                            <span className="truncate">
+                              {language === 'np'
+                                ? `मौज्दात अपुग! उपलब्ध: ${availableStock.toLocaleString()} ${baseUnit} (माग: ${baseQty.toLocaleString()} ${baseUnit})`
+                                : `Insufficient stock! Store has ${availableStock.toLocaleString()} ${baseUnit} (Requested: ${baseQty.toLocaleString()} ${baseUnit})`}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              let maxInUnit = availableStock;
+                              if (product && line.unit !== baseUnit) {
+                                const factor = convertToBaseQty(product, 1, line.unit);
+                                if (factor > 0) maxInUnit = Math.floor((availableStock / factor) * 100) / 100;
+                              }
+                              updateCartLine(idx, { quantity: Math.max(0, maxInUnit) });
+                            }}
+                            className="px-2 py-0.5 rounded bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shrink-0 cursor-pointer shadow-2xs"
+                          >
+                            {language === 'np' ? 'अधिकतम राख्नुहोस्' : 'Set to Max'}
+                          </button>
+                        </div>
+                      )}
 
                     {/* Cut-length Sale Toggle for items sold by length */}
                     <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
@@ -635,8 +767,9 @@ export const NewSale: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ))
-              )}
+                );
+              })
+            )}
             </div>
 
             {/* Calculations Summary */}
@@ -742,6 +875,23 @@ export const NewSale: React.FC = () => {
                 )}
               </div>
 
+              {/* Over-Stock Alert Banner preventing checkout */}
+              {hasStockError && (
+                <div className="p-3 bg-rose-50 border-2 border-rose-400 rounded-xl text-rose-800 text-xs font-bold flex items-start gap-2 shadow-sm animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-black text-rose-900">
+                      {language === 'np' ? 'बिक्री अस्वीकृत: मौज्दात अपुग' : 'Sale Not Allowed: Insufficient Store Stock'}
+                    </div>
+                    <p className="text-[11px] text-rose-700 mt-0.5">
+                      {language === 'np'
+                        ? 'माग गरिएको परिमाण उपलब्ध मौज्दातभन्दा बढी छ । कृपया उपलब्ध मौज्दात बराबर वा कम परिमाण राख्नुहोस् ।'
+                        : 'Requested quantity is greater than the quantity available. Please reduce quantity to proceed.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {errorMsg && (
                 <div className="p-2 bg-red-50 border border-red-200 text-red-700 rounded text-xs flex items-center gap-1.5">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -751,9 +901,14 @@ export const NewSale: React.FC = () => {
 
               {/* Submit & Issue Invoice Button */}
               <button
-                disabled={submitting || cart.length === 0}
+                disabled={submitting || cart.length === 0 || hasStockError}
                 onClick={handleSubmitSale}
-                className="w-full mt-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-extrabold py-3 px-4 rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                className={`w-full mt-3 font-extrabold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm ${
+                  hasStockError
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed border border-slate-300 opacity-80'
+                    : 'bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white cursor-pointer'
+                }`}
+                title={hasStockError ? 'Cannot issue bill: Requested quantity is greater than available stock' : ''}
               >
                 {submitting ? (
                   <>

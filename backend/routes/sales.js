@@ -80,7 +80,7 @@ router.post('/', async (req, res) => {
 
     res.json({ success: true, data: sale, message: 'Invoice issued successfully' });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 
