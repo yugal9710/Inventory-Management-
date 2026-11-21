@@ -50,6 +50,7 @@ export const NewSale: React.FC = () => {
 
   // Payment states
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER' | 'QR_FONEPAY' | 'CREDIT' | 'SPLIT'>('CASH');
+  const [customerPaying, setCustomerPaying] = useState<number>(0);
   const [cashAmount, setCashAmount] = useState<number>(0);
   const [bankAmount, setBankAmount] = useState<number>(0);
   const [qrAmount, setQrAmount] = useState<number>(0);
@@ -227,30 +228,22 @@ export const NewSale: React.FC = () => {
 
   const grandTotal = Number((taxableAmount + nonTaxableAmount + totalVat - Number(overallDiscount || 0)).toFixed(2));
 
-  // Sync default single payment amount whenever grandTotal changes
+  // Sync default paying amount whenever grandTotal changes
   useEffect(() => {
-    if (paymentMethod === 'CASH') {
-      setCashAmount(grandTotal);
-      setBankAmount(0);
-      setQrAmount(0);
-      setCreditAmount(0);
-    } else if (paymentMethod === 'BANK_TRANSFER') {
-      setBankAmount(grandTotal);
-      setCashAmount(0);
-      setQrAmount(0);
-      setCreditAmount(0);
-    } else if (paymentMethod === 'QR_FONEPAY') {
-      setQrAmount(grandTotal);
-      setCashAmount(0);
-      setBankAmount(0);
-      setCreditAmount(0);
-    } else if (paymentMethod === 'CREDIT') {
+    if (paymentMethod === 'CREDIT') {
+      setCustomerPaying(0);
       setCreditAmount(grandTotal);
       setCashAmount(0);
       setBankAmount(0);
       setQrAmount(0);
+    } else {
+      setCustomerPaying(grandTotal);
+      if (paymentMethod === 'CASH') setCashAmount(grandTotal);
+      else if (paymentMethod === 'BANK_TRANSFER') setBankAmount(grandTotal);
+      else if (paymentMethod === 'QR_FONEPAY') setQrAmount(grandTotal);
+      setCreditAmount(0);
     }
-  }, [grandTotal, paymentMethod]);
+  }, [grandTotal]);
 
   // Check stock errors across cart
   const cartStockErrors = cart
@@ -288,18 +281,23 @@ export const NewSale: React.FC = () => {
       return;
     }
 
+    const paying = Math.max(0, Number(customerPaying) || 0);
+    const amountToRecord = Math.min(paying, grandTotal);
+
+    if (paying < grandTotal && isWalkIn) {
+      setErrorMsg('Walk-in customers cannot have an unpaid Khata balance. Please collect full payment or select a registered Khata Customer.');
+      return;
+    }
+
     // Build payments array
     const payments = [];
-    if (paymentMethod === 'CASH' && cashAmount > 0) {
-      payments.push({ method: 'CASH', amount: cashAmount, referenceNumber: paymentRefNumber });
-    } else if (paymentMethod === 'BANK_TRANSFER' && bankAmount > 0) {
-      payments.push({ method: 'BANK_TRANSFER', amount: bankAmount, referenceNumber: paymentRefNumber });
-    } else if (paymentMethod === 'QR_FONEPAY' && qrAmount > 0) {
-      payments.push({ method: 'QR_FONEPAY', amount: qrAmount, referenceNumber: paymentRefNumber });
-    } else if (paymentMethod === 'SPLIT') {
-      if (cashAmount > 0) payments.push({ method: 'CASH', amount: cashAmount, referenceNumber: 'CASH' });
-      if (bankAmount > 0) payments.push({ method: 'BANK_TRANSFER', amount: bankAmount, referenceNumber: paymentRefNumber });
-      if (qrAmount > 0) payments.push({ method: 'QR_FONEPAY', amount: qrAmount, referenceNumber: paymentRefNumber });
+    if (amountToRecord > 0) {
+      const method = paymentMethod === 'CREDIT' ? 'CASH' : paymentMethod;
+      payments.push({
+        method,
+        amount: amountToRecord,
+        referenceNumber: paymentRefNumber || (paymentMethod === 'CASH' && paying > grandTotal ? `CASH TENDERED: Rs. ${paying}` : '')
+      });
     }
 
     setSubmitting(true);
@@ -810,8 +808,11 @@ export const NewSale: React.FC = () => {
                 </span>
                 <div className="grid grid-cols-4 gap-1.5">
                   <button
-                    onClick={() => setPaymentMethod('CASH')}
-                    className={`p-2 rounded-lg text-center font-bold text-[11px] border transition-all ${
+                    onClick={() => {
+                      setPaymentMethod('CASH');
+                      if (customerPaying === 0) setCustomerPaying(grandTotal);
+                    }}
+                    className={`p-2 rounded-lg text-center font-bold text-[11px] border transition-all cursor-pointer ${
                       paymentMethod === 'CASH'
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                         : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
@@ -820,8 +821,11 @@ export const NewSale: React.FC = () => {
                     नगद Cash
                   </button>
                   <button
-                    onClick={() => setPaymentMethod('BANK_TRANSFER')}
-                    className={`p-2 rounded-lg text-center font-bold text-[11px] border transition-all ${
+                    onClick={() => {
+                      setPaymentMethod('BANK_TRANSFER');
+                      if (customerPaying === 0) setCustomerPaying(grandTotal);
+                    }}
+                    className={`p-2 rounded-lg text-center font-bold text-[11px] border transition-all cursor-pointer ${
                       paymentMethod === 'BANK_TRANSFER'
                         ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                         : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
@@ -832,10 +836,11 @@ export const NewSale: React.FC = () => {
                   <button
                     onClick={() => {
                       setPaymentMethod('QR_FONEPAY');
+                      if (customerPaying === 0) setCustomerPaying(grandTotal);
                       setQrModalAmount(grandTotal);
                       setShowQrModal(true);
                     }}
-                    className={`p-2 rounded-lg text-center font-bold text-[11px] border transition-all ${
+                    className={`p-2 rounded-lg text-center font-bold text-[11px] border transition-all cursor-pointer ${
                       paymentMethod === 'QR_FONEPAY'
                         ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
                         : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
@@ -850,8 +855,9 @@ export const NewSale: React.FC = () => {
                         return;
                       }
                       setPaymentMethod('CREDIT');
+                      setCustomerPaying(0);
                     }}
-                    className={`p-2 rounded-lg text-center font-bold text-[11px] border transition-all ${
+                    className={`p-2 rounded-lg text-center font-bold text-[11px] border transition-all cursor-pointer ${
                       paymentMethod === 'CREDIT'
                         ? 'bg-red-600 text-white border-red-600 shadow-sm'
                         : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
@@ -873,6 +879,133 @@ export const NewSale: React.FC = () => {
                     />
                   </div>
                 )}
+
+                {/* Customer Paying / Tendered Amount Section */}
+                <div className="mt-2.5 p-3 bg-gradient-to-br from-slate-50 to-orange-50/20 border-2 border-orange-200/90 rounded-2xl space-y-2 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-black text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+                      <span>{language === 'np' ? 'ग्राहकले तिर्ने रकम (Customer Paying)' : 'Customer Paying Amount'}</span>
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setCustomerPaying(grandTotal)}
+                        className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-orange-600 text-white hover:bg-orange-700 transition cursor-pointer shadow-2xs"
+                        title="Set to full grand total"
+                      >
+                        {language === 'np' ? 'पूरा चुक्ता' : 'Full / Exact'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isWalkIn) {
+                            alert('Credit is only available for registered Khata Customers.');
+                            return;
+                          }
+                          setCustomerPaying(0);
+                          setPaymentMethod('CREDIT');
+                        }}
+                        className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 transition cursor-pointer"
+                        title="Set to 0 (Full Credit)"
+                      >
+                        {language === 'np' ? '० (उधारो)' : '0 (Credit)'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-xs font-black text-slate-500 font-mono">Rs.</span>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={customerPaying === 0 && paymentMethod === 'CREDIT' ? 0 : (customerPaying === 0 ? '' : customerPaying)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setCustomerPaying(isNaN(val) ? 0 : val);
+                      }}
+                      placeholder={paymentMethod === 'CREDIT' ? '0 (Full credit)' : String(grandTotal)}
+                      className="w-full pl-9 pr-3 py-2 bg-white border-2 border-orange-300 focus:border-orange-600 rounded-xl text-base font-mono font-black text-slate-900 outline-none shadow-inner transition"
+                    />
+                  </div>
+
+                  {/* Quick Cash Chips for Fast Change / Tender Calculation */}
+                  {paymentMethod === 'CASH' && (
+                    <div className="flex items-center gap-1 flex-wrap pt-0.5 text-[10px] font-mono font-bold text-slate-700">
+                      <span className="text-[10px] font-sans font-semibold text-slate-500 mr-0.5">Quick:</span>
+                      {[100, 500, 1000].map((note) => (
+                        <button
+                          key={note}
+                          type="button"
+                          onClick={() => setCustomerPaying(prev => Number((prev + note).toFixed(2)))}
+                          className="px-1.5 py-0.5 bg-white border border-slate-300 hover:border-orange-500 rounded text-slate-700 hover:text-orange-600 transition cursor-pointer shadow-2xs"
+                        >
+                          +{note}
+                        </button>
+                      ))}
+                      {grandTotal > 0 && Math.ceil(grandTotal / 500) * 500 > grandTotal && (
+                        <button
+                          type="button"
+                          onClick={() => setCustomerPaying(Math.ceil(grandTotal / 500) * 500)}
+                          className="px-1.5 py-0.5 bg-white border border-slate-300 hover:border-orange-500 rounded text-slate-700 hover:text-orange-600 transition cursor-pointer shadow-2xs"
+                        >
+                          Rs. {Math.ceil(grandTotal / 500) * 500}
+                        </button>
+                      )}
+                      {grandTotal > 0 && Math.ceil(grandTotal / 1000) * 1000 > grandTotal && (
+                        <button
+                          type="button"
+                          onClick={() => setCustomerPaying(Math.ceil(grandTotal / 1000) * 1000)}
+                          className="px-1.5 py-0.5 bg-white border border-slate-300 hover:border-orange-500 rounded text-slate-700 hover:text-orange-600 transition cursor-pointer shadow-2xs"
+                        >
+                          Rs. {Math.ceil(grandTotal / 1000) * 1000}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Dynamic Status / Change Due / Unpaid Balance Notification */}
+                  {customerPaying > grandTotal ? (
+                    <div className="p-2 bg-emerald-50 border-2 border-emerald-300 rounded-xl flex items-center justify-between text-xs font-bold text-emerald-900 animate-in fade-in">
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>{language === 'np' ? 'ग्राहकलाई फिर्ता (Change Return):' : 'Change Due to Customer:'}</span>
+                      </span>
+                      <span className="font-mono text-sm text-emerald-700 font-black">
+                        {formatNpr(customerPaying - grandTotal)}
+                      </span>
+                    </div>
+                  ) : customerPaying < grandTotal && customerPaying > 0 ? (
+                    <div className="p-2 bg-amber-50 border-2 border-amber-300 rounded-xl flex items-center justify-between text-xs font-bold text-amber-950 animate-in fade-in">
+                      <span className="flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>{language === 'np' ? 'खातामा बाँकी उधारो (Khata Due):' : 'Remaining Unpaid Khata Due:'}</span>
+                      </span>
+                      <span className="font-mono text-sm text-amber-800 font-black">
+                        {formatNpr(grandTotal - customerPaying)}
+                      </span>
+                    </div>
+                  ) : customerPaying === 0 ? (
+                    <div className="p-2 bg-rose-50 border-2 border-rose-300 rounded-xl flex items-center justify-between text-xs font-bold text-rose-900 animate-in fade-in">
+                      <span className="flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>{language === 'np' ? 'सम्पूर्ण उधारो बिक्री (Full Credit):' : 'Full Khata Credit Balance:'}</span>
+                      </span>
+                      <span className="font-mono text-sm text-rose-700 font-black">
+                        {formatNpr(grandTotal)}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="p-1.5 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between text-xs font-bold text-emerald-800">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{language === 'np' ? 'रकम पूरा चुक्ता' : 'Paid in Full (Exact Amount)'}</span>
+                      </span>
+                      <span className="font-mono text-emerald-700 font-bold">{formatNpr(grandTotal)}</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Over-Stock Alert Banner preventing checkout */}
@@ -918,7 +1051,13 @@ export const NewSale: React.FC = () => {
                 ) : (
                   <>
                     <Printer className="w-4 h-4" />
-                    <span>{t('issueInvoice')} ({formatNpr(grandTotal)})</span>
+                    <span>
+                      {customerPaying <= 0
+                        ? `${language === 'np' ? 'उधारो बिल जारी गर्नुहोस्' : 'Issue Khata Credit Bill'} (Due: ${formatNpr(grandTotal)})`
+                        : customerPaying < grandTotal
+                        ? `${language === 'np' ? 'आंशिक बिल जारी गर्नुहोस्' : 'Issue Partial Bill'} (Paid: ${formatNpr(customerPaying)} | Due: ${formatNpr(grandTotal - customerPaying)})`
+                        : `${t('issueInvoice')} (${formatNpr(grandTotal)})`}
+                    </span>
                   </>
                 )}
               </button>
