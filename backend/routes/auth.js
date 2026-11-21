@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/database');
-const crypto = require('crypto');
+const platformService = require('../services/platformService');
 
-// Generate safe auth token
-function generateToken(user) {
+// Generate safe auth token with tenant binding
+function generateToken(user, tenantId) {
   const payload = {
     userId: user.id,
     username: user.username,
     role: user.role,
     name: user.full_name,
+    tenantId: tenantId || user.tenantId || 'tenant-jagdamba-iron',
     timestamp: Date.now()
   };
   return Buffer.from(JSON.stringify(payload)).toString('base64');
@@ -24,6 +25,7 @@ router.post('/register', (req, res) => {
     const cleanName = (full_name || '').trim();
     const cleanPhone = (phone || '').trim();
     const cleanRole = (role || 'cashier').trim();
+    const currentTenantId = req.tenantId || 'tenant-jagdamba-iron';
 
     if (!cleanUser) {
       return res.status(400).json({
@@ -59,12 +61,12 @@ router.post('/register', (req, res) => {
     const validRoles = ['admin', 'cashier', 'storekeeper', 'accountant'];
     const assignedRole = validRoles.includes(cleanRole) ? cleanRole : 'cashier';
 
-    // Verify user is not already registered
+    // Verify user is not already registered in active tenant
     const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = ? OR (phone IS NOT NULL AND phone != \'\' AND phone = ?)').get(cleanUser, cleanPhone || '__dummy__');
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: 'A user with this username or phone number is already registered. Please sign in instead. / यो नाम वा फोन नम्बर पहिले नै दर्ता छ ।'
+        message: 'A user with this username or phone number is already registered in this store. Please sign in instead.'
       });
     }
 
@@ -80,10 +82,11 @@ router.post('/register', (req, res) => {
       full_name: cleanName,
       role: assignedRole,
       phone: cleanPhone || null,
+      tenantId: currentTenantId,
       active: 1
     };
 
-    const token = generateToken(newUser);
+    const token = generateToken(newUser, currentTenantId);
 
     res.status(201).json({
       success: true,
@@ -111,17 +114,55 @@ router.post('/login', (req, res) => {
       });
     }
 
-    // Look up registered user in SQLite
-    const user = db.prepare(`
+    let activeTenantId = req.headers['x-tenant-id'] || req.body.tenantId || req.tenantId || 'tenant-jagdamba-iron';
+
+    // 1. Look up user in active tenant's SQLite database
+    let user = db.prepare(`
       SELECT id, username, password_hash, full_name, role, phone, active 
       FROM users 
       WHERE LOWER(username) = ? OR phone = ?
     `).get(cleanUser, cleanUser);
 
+    // 2. If not found in active tenant, check platform registry across all provisioned tenants
+    if (!user) {
+      try {
+        const allPlatformUsers = platformService.load().users || [];
+        const matched = allPlatformUsers.find(u =>
+          (u.username && u.username.toLowerCase() === cleanUser) ||
+          (u.phone && u.phone === cleanUser)
+        );
+
+        if (matched && matched.tenantId && matched.tenantId !== activeTenantId) {
+          activeTenantId = matched.tenantId;
+          const tenantDb = db.getTenantDb(activeTenantId);
+          user = tenantDb.prepare(`
+            SELECT id, username, password_hash, full_name, role, phone, active 
+            FROM users 
+            WHERE LOWER(username) = ? OR phone = ?
+          `).get(cleanUser, cleanUser);
+        }
+      } catch (findErr) {
+        console.warn('Cross-tenant user discovery note:', findErr.message);
+      }
+    }
+
+    // 3. Super Admin global fallback (if superadmin credentials are correct)
+    if (!user && cleanUser === 'superadmin' && cleanPass === 'superadmin123') {
+      user = {
+        id: 999,
+        username: 'superadmin',
+        password_hash: 'superadmin123',
+        full_name: 'Anaya Craft (Software Owner)',
+        role: 'super_admin',
+        phone: '9851087654',
+        active: 1
+      };
+    }
+
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Unregistered user. No account found for this Login ID. Please register first. / दर्ता नभएको प्रयोगकर्ता । पहिले दर्ता गर्नुहोस् ।'
+        message: 'Unregistered user. No account found for this Login ID. Please check your credentials. / दर्ता नभएको प्रयोगकर्ता । विवरण जाँच गर्नुहोस् ।'
       });
     }
 
@@ -141,17 +182,19 @@ router.post('/login', (req, res) => {
       });
     }
 
-    const token = generateToken(user);
+    const token = generateToken(user, activeTenantId);
 
     res.json({
       success: true,
       token,
+      tenantId: activeTenantId,
       user: {
         id: user.id,
         username: user.username,
         full_name: user.full_name,
         role: user.role,
-        phone: user.phone
+        phone: user.phone,
+        tenantId: activeTenantId
       }
     });
   } catch (err) {
@@ -172,19 +215,38 @@ router.get('/me', (req, res) => {
     const json = Buffer.from(token, 'base64').toString('utf8');
     const session = JSON.parse(json);
 
-    const user = db.prepare('SELECT id, username, full_name, role, phone, active FROM users WHERE id = ?').get(session.userId);
+    const activeTenantId = (session.role === 'super_admin' && req.headers['x-tenant-id'])
+      ? req.headers['x-tenant-id']
+      : (session.tenantId || req.tenantId || 'tenant-jagdamba-iron');
+
+    const tenantDb = db.getTenantDb(activeTenantId);
+    let user = tenantDb.prepare('SELECT id, username, full_name, role, phone, active FROM users WHERE id = ? OR username = ?').get(session.userId, session.username);
+
+    if (!user && session.role === 'super_admin') {
+      user = {
+        id: session.userId,
+        username: session.username,
+        full_name: session.name || 'Super Admin',
+        role: 'super_admin',
+        phone: '9851087654',
+        active: 1
+      };
+    }
+
     if (!user || user.active !== 1) {
       return res.status(401).json({ success: false, message: 'Session expired or user inactive' });
     }
 
     res.json({
       success: true,
+      tenantId: activeTenantId,
       user: {
         id: user.id,
         username: user.username,
         full_name: user.full_name,
         role: user.role,
-        phone: user.phone
+        phone: user.phone,
+        tenantId: activeTenantId
       }
     });
   } catch (err) {

@@ -6,6 +6,9 @@ frontend/node_modules/
 *.db-journal
 *.db-wal
 *.db-shm
+data/tenants/*.db
+data/tenants/*.db-wal
+data/tenants/*.db-shm
 
 # Environment & logs
 .env.local

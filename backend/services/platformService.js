@@ -554,6 +554,25 @@ class PlatformService {
     }
 
     this.save(data);
+
+    // Provision physical isolated SQLite database for tenant
+    try {
+      const { seedTenant } = require('../scripts/seedTenant');
+      const tenantDb = db.getTenantDb(id);
+      seedTenant(tenantDb, {
+        name: payload.name,
+        pan: payload.pan,
+        phone: payload.phone,
+        address: payload.address,
+        adminUsername: payload.adminUsername || 'admin',
+        adminPassword: payload.adminPassword || 'admin123',
+        adminName: payload.adminName || payload.contactPerson || 'Store Administrator',
+        adminEmail: payload.adminEmail || `${slug}@anacraft.com`
+      });
+    } catch (dbErr) {
+      console.error(`Error provisioning database for tenant ${id}:`, dbErr);
+    }
+
     this.logAudit('TENANT_PROVISIONED', id, `New store "${payload.name}" provisioned on ${newTenant.planId}.`);
     return newTenant;
   }
@@ -613,9 +632,44 @@ class PlatformService {
 
     if (data.tenants.length === beforeCount) throw new Error('Tenant not found');
 
+    // Clean up isolated database file
+    try {
+      const cleanId = id.replace(/[^a-zA-Z0-9_-]/g, '');
+      const tenantDbFile = path.join(DATA_DIR, 'tenants', `${cleanId}.db`);
+      if (fs.existsSync(tenantDbFile)) fs.unlinkSync(tenantDbFile);
+      if (fs.existsSync(tenantDbFile + '-wal')) fs.unlinkSync(tenantDbFile + '-wal');
+      if (fs.existsSync(tenantDbFile + '-shm')) fs.unlinkSync(tenantDbFile + '-shm');
+    } catch (e) {}
+
     this.save(data);
     this.logAudit('TENANT_DELETED', id, `Store tenant ${id} and associated platform records permanently deleted.`);
     return true;
+  }
+
+  ensureSeedDatabases() {
+    try {
+      const { seedTenant } = require('../scripts/seedTenant');
+      const tenants = this.getAllTenants();
+      for (const t of tenants) {
+        if (t.id === 'tenant-jagdamba-iron') continue;
+        const tenantDb = db.getTenantDb(t.id);
+        const prodCount = tenantDb.prepare('SELECT COUNT(*) as c FROM products').get()?.c || 0;
+        if (prodCount === 0) {
+          console.log(`🌱 Seeding initial isolated database for ${t.name} (${t.id})...`);
+          seedTenant(tenantDb, {
+            name: t.name,
+            pan: t.pan,
+            phone: t.phone,
+            address: t.address,
+            adminUsername: t.slug ? `${t.slug.replace(/[^a-z0-9]/g, '').slice(0, 4)}_admin` : 'admin',
+            adminPassword: 'admin123',
+            adminName: t.contactPerson || 'Store Administrator'
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('ensureSeedDatabases note:', e.message);
+    }
   }
 
   toggleModule(id, moduleName) {

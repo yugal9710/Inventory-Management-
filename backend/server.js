@@ -30,6 +30,63 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Ensure seed databases for pre-configured platform tenants
+const platformService = require('./services/platformService');
+try {
+  platformService.ensureSeedDatabases();
+} catch (pErr) {
+  console.warn('ensureSeedDatabases note:', pErr.message);
+}
+
+// Tenant Resolution & Data Isolation Middleware
+app.use((req, res, next) => {
+  // Only process /api routes
+  if (!req.path.startsWith('/api')) {
+    return next();
+  }
+
+  // 1. Resolve requested tenant
+  let requestedTenantId = req.headers['x-tenant-id'] || req.query.tenantId;
+
+  // 2. Decode user session if authorization header present
+  let authUser = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.slice(7);
+      authUser = JSON.parse(Buffer.from(token, 'base64').toString('utf8'));
+      req.user = authUser;
+    } catch (e) {}
+  }
+
+  // 3. Authorization & Tenant Access Control:
+  // Non-super_admin users are strictly locked to their assigned store!
+  if (authUser && authUser.role !== 'super_admin' && authUser.tenantId) {
+    if (requestedTenantId && requestedTenantId !== authUser.tenantId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: You are only authorized to access your assigned store tenant.'
+      });
+    }
+    requestedTenantId = authUser.tenantId;
+  }
+
+  // 4. Default fallback to primary store (Jagdamba Steel)
+  const resolvedTenantId = requestedTenantId || authUser?.tenantId || 'tenant-jagdamba-iron';
+  req.tenantId = resolvedTenantId;
+
+  // 5. Run request handler within tenant context
+  try {
+    const tenantDb = db.getTenantDb(resolvedTenantId);
+    db.tenantStorage.run({ tenantId: resolvedTenantId, db: tenantDb }, () => {
+      next();
+    });
+  } catch (err) {
+    console.error(`Tenant resolution error for [${resolvedTenantId}]:`, err);
+    res.status(500).json({ success: false, error: 'Database access error for tenant: ' + err.message });
+  }
+});
+
 // Register API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/products', require('./routes/products'));

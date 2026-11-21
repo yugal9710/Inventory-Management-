@@ -95,6 +95,38 @@
         "amountPaid": 3500,
         "remainingBalance": 0
       }
+    },
+    {
+      "id": "tenant-butwal-steel-6977",
+      "name": "Butwal Steel & Hardware Traders",
+      "slug": "butwal-steel",
+      "status": "Active",
+      "country": "Nepal",
+      "currency": "Rs.",
+      "timeZone": "Asia/Kathmandu",
+      "planId": "plan-professional",
+      "address": "Traffic Chowk, Butwal, Rupandehi",
+      "phone": "9851012345",
+      "pan": "609123884",
+      "contactPerson": "Karan Thapa",
+      "createdAt": "2026-11-21T11:54:36.977Z",
+      "modules": {
+        "cutRemnants": true,
+        "cbmsSync": true,
+        "multiYard": true,
+        "dynamicQr": true,
+        "customerKhata": true,
+        "bulkDiscounts": true
+      },
+      "subscription": {
+        "planId": "plan-professional",
+        "billingCycle": "Yearly",
+        "status": "Active",
+        "expiryDate": "2027-11-21T11:54:36.977Z",
+        "totalAmountDue": 75000,
+        "amountPaid": 75000,
+        "remainingBalance": 0
+      }
     }
   ],
   "plans": [
@@ -189,6 +221,15 @@
       "isPrimary": true,
       "verified": true,
       "sslStatus": "active"
+    },
+    {
+      "id": "dom-1795262076977",
+      "tenantId": "tenant-butwal-steel-6977",
+      "domain": "butwal-steel.anacraft.com",
+      "type": "subdomain",
+      "isPrimary": true,
+      "verified": true,
+      "sslStatus": "active"
     }
   ],
   "payments": [
@@ -238,6 +279,18 @@
       "invoiceNo": "INV-AC-2026-109",
       "billingPeriod": "Nov-Dec 2026 Monthly Subscription",
       "notes": "Monthly renewal verified.",
+      "recordedBy": "Developer Admin"
+    },
+    {
+      "id": "pay-1795262076977",
+      "tenantId": "tenant-butwal-steel-6977",
+      "amount": 75000,
+      "date": "2026-11-21",
+      "method": "Initial Deposit / Cash",
+      "transactionRef": "INIT-076977",
+      "invoiceNo": "INV-AC-2026-6977",
+      "billingPeriod": "Yearly Contract Onboarding",
+      "notes": "Initial onboarding fee payment recorded during provisioning.",
       "recordedBy": "Developer Admin"
     }
   ],
@@ -303,6 +356,18 @@
       "role": "admin",
       "phone": "+977 9841987654",
       "active": true
+    },
+    {
+      "id": "usr-1795262076977",
+      "tenantId": "tenant-butwal-steel-6977",
+      "name": "Karan Thapa",
+      "email": "karan@butwalsteel.com",
+      "username": "butwal_admin",
+      "password": "securepass123",
+      "password_hash": "securepass123",
+      "role": "admin",
+      "phone": "9851012345",
+      "active": true
     }
   ],
   "renewals": [
@@ -367,6 +432,14 @@
     "instructions": "Please transfer the exact plan subscription amount via Mobile Banking, connectIPS, eSewa, Khalti, or Fonepay QR to our official Nabil Bank merchant account. Upload the payment voucher or screenshot below with your Payer Name."
   },
   "auditLogs": [
+    {
+      "id": "log-1795262077233",
+      "timestamp": "2026-11-21T11:54:37.234Z",
+      "action": "TENANT_PROVISIONED",
+      "tenantId": "tenant-butwal-steel-6977",
+      "user": "Developer Admin",
+      "details": "New store \"Butwal Steel & Hardware Traders\" provisioned on plan-professional."
+    },
     {
       "id": "log-1795251246222",
       "timestamp": "2026-11-21T08:54:06.222Z",

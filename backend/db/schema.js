@@ -1,7 +1,8 @@
 const db = require('./database');
 
-function initSchema() {
-  db.exec(`
+function initSchema(targetDb) {
+  const activeDb = targetDb || db;
+  activeDb.exec(`
     -- Settings table for Store Profile, Fiscal Year, CBMS config, Tax defaults
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -428,11 +429,11 @@ function initSchema() {
     { key: 'customer_code_prefix', value: 'CUST-' },
   ];
 
-  const insertSetting = db.prepare(`
+  const insertSetting = activeDb.prepare(`
     INSERT OR IGNORE INTO settings (key, value) VALUES (@key, @value)
   `);
 
-  const setTransaction = db.transaction((settings) => {
+  const setTransaction = activeDb.transaction((settings) => {
     for (const s of settings) insertSetting.run(s);
   });
   setTransaction(defaultSettings);
@@ -444,12 +445,12 @@ function initSchema() {
     { name: '2082/83', start_bs: '2082-04-01', end_bs: '2082-12-30', start_ad: '2025-07-16', end_ad: '2026-07-15', is_active: 0 },
   ];
 
-  const insertFy = db.prepare(`
+  const insertFy = activeDb.prepare(`
     INSERT OR IGNORE INTO fiscal_years (name, start_date_bs, end_date_bs, start_date_ad, end_date_ad, is_active)
     VALUES (@name, @start_bs, @end_bs, @start_ad, @end_ad, @is_active)
   `);
 
-  const fyTransaction = db.transaction((fys) => {
+  const fyTransaction = activeDb.transaction((fys) => {
     for (const f of fys) insertFy.run(f);
   });
   fyTransaction(defaultFiscalYears);
@@ -461,20 +462,20 @@ function initSchema() {
     { name: 'Retail Hardware Store (पसल काउन्टर)', name_np: 'काउन्टर पसल', code: 'STORE', is_default: 0 },
   ];
 
-  const insertLoc = db.prepare(`
+  const insertLoc = activeDb.prepare(`
     INSERT OR IGNORE INTO stock_locations (name, name_np, code, is_default)
     VALUES (@name, @name_np, @code, @is_default)
   `);
 
-  const locTransaction = db.transaction((locs) => {
+  const locTransaction = activeDb.transaction((locs) => {
     for (const l of locs) insertLoc.run(l);
   });
   locTransaction(defaultLocations);
 
   // Initialize default users if table is empty
-  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+  const userCount = activeDb.prepare('SELECT COUNT(*) as count FROM users').get().count;
   if (userCount === 0) {
-    const insertUser = db.prepare(`
+    const insertUser = activeDb.prepare(`
       INSERT INTO users (username, password_hash, full_name, role, phone, active)
       VALUES (@username, @password_hash, @full_name, @role, @phone, 1)
     `);
@@ -489,32 +490,32 @@ function initSchema() {
 
   // Safe schema migration for customer_code
   try {
-    const custCols = db.prepare('PRAGMA table_info(customers)').all().map(c => c.name);
+    const custCols = activeDb.prepare('PRAGMA table_info(customers)').all().map(c => c.name);
     if (!custCols.includes('customer_code')) {
-      db.exec('ALTER TABLE customers ADD COLUMN customer_code TEXT');
+      activeDb.exec('ALTER TABLE customers ADD COLUMN customer_code TEXT');
     }
-    const unassigned = db.prepare("SELECT id FROM customers WHERE customer_code IS NULL OR customer_code = ''").all();
-    const updateCode = db.prepare('UPDATE customers SET customer_code = ? WHERE id = ?');
+    const unassigned = activeDb.prepare("SELECT id FROM customers WHERE customer_code IS NULL OR customer_code = ''").all();
+    const updateCode = activeDb.prepare('UPDATE customers SET customer_code = ? WHERE id = ?');
     for (const c of unassigned) {
       updateCode.run('CUST-' + String(c.id).padStart(4, '0'), c.id);
     }
-    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_code ON customers(customer_code);');
+    activeDb.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_code ON customers(customer_code);');
   } catch (migErr) {
     console.warn('Customer code migration warning:', migErr.message);
   }
 
   // Safe schema migration for supplier_code
   try {
-    const suppCols = db.prepare('PRAGMA table_info(suppliers)').all().map(c => c.name);
+    const suppCols = activeDb.prepare('PRAGMA table_info(suppliers)').all().map(c => c.name);
     if (!suppCols.includes('supplier_code')) {
-      db.exec('ALTER TABLE suppliers ADD COLUMN supplier_code TEXT');
+      activeDb.exec('ALTER TABLE suppliers ADD COLUMN supplier_code TEXT');
     }
-    const unassignedSupp = db.prepare("SELECT id FROM suppliers WHERE supplier_code IS NULL OR supplier_code = ''").all();
-    const updateSuppCode = db.prepare('UPDATE suppliers SET supplier_code = ? WHERE id = ?');
+    const unassignedSupp = activeDb.prepare("SELECT id FROM suppliers WHERE supplier_code IS NULL OR supplier_code = ''").all();
+    const updateSuppCode = activeDb.prepare('UPDATE suppliers SET supplier_code = ? WHERE id = ?');
     for (const s of unassignedSupp) {
       updateSuppCode.run('SUPP-' + String(s.id).padStart(4, '0'), s.id);
     }
-    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_suppliers_code ON suppliers(supplier_code);');
+    activeDb.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_suppliers_code ON suppliers(supplier_code);');
   } catch (migErr) {
     console.warn('Supplier code migration warning:', migErr.message);
   }

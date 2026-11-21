@@ -1211,13 +1211,19 @@ export default function DeveloperControlPanel({ onTenantUpdated, onSwitchTenant 
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">Nepal PAN / VAT No.</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase">Nepal PAN / VAT No.</label>
+                    <span className="text-[10px] font-mono font-bold text-slate-400">
+                      {newStore.pan.length}/9 digits
+                    </span>
+                  </div>
                   <input
                     type="text"
-                    placeholder="e.g. 605192841"
+                    maxLength={9}
+                    placeholder="9 digits (numbers only)"
                     value={newStore.pan}
-                    onChange={e => setNewStore({ ...newStore, pan: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:bg-white outline-hidden"
+                    onChange={e => setNewStore({ ...newStore, pan: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold font-mono focus:bg-white outline-hidden"
                   />
                 </div>
 
