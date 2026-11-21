@@ -116,6 +116,7 @@ export interface Customer {
 
 export interface Supplier {
   id: number;
+  supplier_code?: string;
   name: string;
   company_name?: string;
   phone?: string;
@@ -123,6 +124,8 @@ export interface Supplier {
   pan_vat?: string;
   opening_balance: number;
   current_balance: number;
+  total_purchased?: number;
+  total_paid?: number;
   notes?: string;
   active: number;
 }

@@ -503,6 +503,22 @@ function initSchema() {
     console.warn('Customer code migration warning:', migErr.message);
   }
 
+  // Safe schema migration for supplier_code
+  try {
+    const suppCols = db.prepare('PRAGMA table_info(suppliers)').all().map(c => c.name);
+    if (!suppCols.includes('supplier_code')) {
+      db.exec('ALTER TABLE suppliers ADD COLUMN supplier_code TEXT');
+    }
+    const unassignedSupp = db.prepare("SELECT id FROM suppliers WHERE supplier_code IS NULL OR supplier_code = ''").all();
+    const updateSuppCode = db.prepare('UPDATE suppliers SET supplier_code = ? WHERE id = ?');
+    for (const s of unassignedSupp) {
+      updateSuppCode.run('SUPP-' + String(s.id).padStart(4, '0'), s.id);
+    }
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_suppliers_code ON suppliers(supplier_code);');
+  } catch (migErr) {
+    console.warn('Supplier code migration warning:', migErr.message);
+  }
+
   console.log('✅ SQLite schema initialized successfully with Nepal IRD specifications.');
 }
 
