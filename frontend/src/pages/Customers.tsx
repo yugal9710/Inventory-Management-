@@ -914,9 +914,10 @@ export const Customers: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="98XXXXXXXX"
+                      maxLength={10}
+                      placeholder="98XXXXXXXX (10 digits)"
                       value={customerForm.phone}
-                      onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
+                      onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                       className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 font-mono font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-orange-500 outline-none"
                     />
                   </div>

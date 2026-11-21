@@ -192,4 +192,42 @@ router.get('/me', (req, res) => {
   }
 });
 
+// POST /api/auth/reset-password
+router.post('/reset-password', (req, res) => {
+  try {
+    const { username, phone, newPassword } = req.body;
+    const cleanUser = (username || '').trim().toLowerCase();
+    const cleanPhone = (phone || '').trim();
+    const cleanPass = (newPassword || '').trim();
+
+    if (!cleanUser) {
+      return res.status(400).json({ success: false, message: 'Username / Login ID is required. / प्रयोगकर्ता नाम अनिवार्य छ ।' });
+    }
+    if (!cleanPhone || cleanPhone.length !== 10 || !/^\d{10}$/.test(cleanPhone)) {
+      return res.status(400).json({ success: false, message: 'Phone number must be exactly 10 digits (numbers only). / फोन नम्बर १० अंकको हुनुपर्छ ।' });
+    }
+    if (!cleanPass || cleanPass.length < 4) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 4 characters long. / पासवर्ड कम्तिमा ४ अक्षरको हुनुपर्छ ।' });
+    }
+
+    const user = db.prepare('SELECT id, username, full_name, phone FROM users WHERE LOWER(username) = ? AND phone = ?').get(cleanUser, cleanPhone);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No registered user matches this Login ID and 10-digit phone number. / यो विवरणसँग मेल खाने प्रयोगकर्ता फेला परेन ।'
+      });
+    }
+
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(cleanPass, user.id);
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully! You can now sign in with your new password. / पासवर्ड सफलतापूर्वक परिवर्तन गरियो ।'
+    });
+  } catch (err) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ success: false, message: 'Error resetting password: ' + err.message });
+  }
+});
+
 module.exports = router;

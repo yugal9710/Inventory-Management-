@@ -250,7 +250,9 @@
       "username": "admin",
       "role": "admin",
       "phone": "+977 9851087654",
-      "active": true
+      "active": true,
+      "password": "Jagdamba@123",
+      "password_hash": "Jagdamba@123"
     },
     {
       "id": "usr-2",
@@ -365,6 +367,14 @@
     "instructions": "Please transfer the exact plan subscription amount via Mobile Banking, connectIPS, eSewa, Khalti, or Fonepay QR to our official Nabil Bank merchant account. Upload the payment voucher or screenshot below with your Payer Name."
   },
   "auditLogs": [
+    {
+      "id": "log-1795251246222",
+      "timestamp": "2026-11-21T08:54:06.222Z",
+      "action": "USER_PASSWORD_RESET",
+      "tenantId": "tenant-jagdamba-iron",
+      "user": "Developer Admin",
+      "details": "Password assigned/reset for user \"admin\"."
+    },
     {
       "id": "log-1794745318713",
       "timestamp": "2026-11-15T12:21:58.713Z",

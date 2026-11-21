@@ -116,6 +116,19 @@ router.delete('/tenants/:id/users/:userId', (req, res) => {
   }
 });
 
+router.post('/tenants/:id/users/:userId/reset-password', (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.trim().length < 4) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 4 characters long.' });
+    }
+    const result = platformService.resetTenantUserPassword(req.params.id, req.params.userId, newPassword.trim());
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 // Store Payments & Ledger
 router.get('/tenants/:id/payments', (req, res) => {
   try {

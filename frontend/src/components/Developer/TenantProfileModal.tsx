@@ -340,6 +340,32 @@ export default function TenantProfileModal({
     }
   };
 
+  const handleResetUserPassword = async (user: any) => {
+    const defaultGen = 'Iron@' + Math.floor(1000 + Math.random() * 9000);
+    const newPass = prompt(`Assign / Reset Password for user @${user.username}:`, defaultGen);
+    if (!newPass || !newPass.trim()) return;
+    if (newPass.trim().length < 4) {
+      alert('Password must be at least 4 characters long.');
+      return;
+    }
+    try {
+      setProcessing(true);
+      const res = await fetch(`/api/platform/tenants/${tenantId}/users/${user.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: newPass.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password');
+      alert(`✅ Password successfully reset for @${user.username}!\nNew assigned password: ${newPass.trim()}`);
+      fetchTenantProfile();
+    } catch (err: any) {
+      alert(`Error resetting password: ${err.message}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleDeleteStorePermanent = async () => {
     if (tenantId === 'tenant-jagdamba-iron') {
       alert('The primary client store (tenant-jagdamba-iron) cannot be deleted.');
@@ -953,13 +979,30 @@ export default function TenantProfileModal({
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">Phone</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-600 uppercase">Phone</label>
+                            <span className="text-[9px] font-mono text-slate-400">{userForm.phone.length}/10</span>
+                          </div>
                           <input
                             type="text"
-                            placeholder="+977 98..."
+                            maxLength={10}
+                            placeholder="98XXXXXXXX (10 digits)"
                             value={userForm.phone}
-                            onChange={e => setUserForm({ ...userForm, phone: e.target.value })}
-                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-hidden"
+                            onChange={e => setUserForm({ ...userForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-semibold outline-hidden"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
+                            Assign Password {editingUser ? '(leave blank to keep current)' : '*'}
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={editingUser ? "Leave blank to keep current password" : "Enter password (e.g. staff123)"}
+                            value={(userForm as any).password || ''}
+                            onChange={e => setUserForm({ ...userForm, password: e.target.value } as any)}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-semibold outline-hidden"
                           />
                         </div>
                       </div>
@@ -1001,6 +1044,14 @@ export default function TenantProfileModal({
                         </div>
 
                         <div className="flex items-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() => handleResetUserPassword(u)}
+                            className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition"
+                            title="Assign / Reset Password"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             onClick={() => {
                               setEditingUser(u);

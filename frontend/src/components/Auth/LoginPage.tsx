@@ -37,8 +37,8 @@ export const LoginPage: React.FC = () => {
   const { language, setLanguage } = useLanguage();
   const { login, register } = useAuth();
   
-  // Mode: 'login' or 'register'
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  // Mode: 'login' or 'register' or 'reset'
+  const [mode, setMode] = useState<'login' | 'register' | 'reset'>('login');
 
   // Login form state (empty by default - no shortcuts)
   const [username, setUsername] = useState('');
@@ -53,6 +53,13 @@ export const LoginPage: React.FC = () => {
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
+
+  // Reset password form state
+  const [resetUsername, setResetUsername] = useState('');
+  const [resetPhone, setResetPhone] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +147,11 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
+    if (cleanPhone && cleanPhone.length !== 10) {
+      setError(language === 'np' ? 'सम्पर्क फोन नम्बर ठ्याक्कै १० अंकको हुनुपर्छ ।' : 'Phone number must be exactly 10 digits (numbers only).');
+      return;
+    }
+
     setLoading(true);
 
     const payload: RegisterPayload = {
@@ -156,7 +168,64 @@ export const LoginPage: React.FC = () => {
       setLoading(false);
     } else {
       setSuccessMsg(language === 'np' ? 'नयाँ खाता सफलतापूर्वक दर्ता गरियो !' : 'Account registered successfully! Access granted.');
-      // Auto-authenticated by register method; system will transition into AppContent
+    }
+  };
+
+  // Password reset handler
+  const handleResetPasswordSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setError(null);
+    setSuccessMsg(null);
+
+    const cleanUser = resetUsername.trim().toLowerCase();
+    const cleanPhone = resetPhone.trim();
+    const cleanPass = resetNewPassword.trim();
+    const cleanConfirm = resetConfirmPassword.trim();
+
+    if (!cleanUser) {
+      setError(language === 'np' ? 'कृपया प्रयोगकर्ता नाम (Login ID) राख्नुहोस् ।' : 'Please enter your username / Login ID.');
+      return;
+    }
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      setError(language === 'np' ? 'कृपया ठ्याक्कै १० अंकको दर्ता फोन नम्बर राख्नुहोस् ।' : 'Please enter your registered 10-digit phone number.');
+      return;
+    }
+    if (!cleanPass) {
+      setError(language === 'np' ? 'कृपया नयाँ पासवर्ड राख्नुहोस् ।' : 'Please enter a new password.');
+      return;
+    }
+    if (cleanPass.length < 4) {
+      setError(language === 'np' ? 'पासवर्ड कम्तिमा ४ अक्षरको हुनुपर्छ ।' : 'Password must be at least 4 characters long.');
+      return;
+    }
+    if (cleanPass !== cleanConfirm) {
+      setError(language === 'np' ? 'नयाँ पासवर्ड र पुष्टि पासवर्ड मिलेन ।' : 'Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: cleanUser,
+          phone: cleanPhone,
+          newPassword: cleanPass
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to reset password');
+      }
+      setSuccessMsg(language === 'np' ? 'पासवर्ड सफलतापूर्वक परिवर्तन भयो ! अब नयाँ पासवर्डले लगइन गर्नुहोस् ।' : 'Password reset successfully! Please sign in with your new password.');
+      setMode('login');
+      setUsername(cleanUser);
+      setPassword('');
+    } catch (err: any) {
+      setError(err.message || 'Error resetting password');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -202,8 +271,8 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Mode Switch Tabs: Sign In vs Register */}
-        <div className="grid grid-cols-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/60 text-xs font-bold">
+        {/* Mode Switch Tabs: Sign In vs Register vs Reset Password */}
+        <div className="grid grid-cols-3 p-1.5 bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/60 text-xs font-bold gap-1">
           <button
             type="button"
             onClick={() => {
@@ -211,14 +280,14 @@ export const LoginPage: React.FC = () => {
               setError(null);
               setSuccessMsg(null);
             }}
-            className={`py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer ${
+            className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer text-center ${
               mode === 'login'
                 ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-sm border border-slate-200/80 dark:border-slate-700 font-extrabold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
-            <LogIn className="w-4 h-4" />
-            <span>{language === 'np' ? 'साइन इन (Sign In)' : 'Sign In'}</span>
+            <LogIn className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{language === 'np' ? 'साइन इन' : 'Sign In'}</span>
           </button>
 
           <button
@@ -228,14 +297,31 @@ export const LoginPage: React.FC = () => {
               setError(null);
               setSuccessMsg(null);
             }}
-            className={`py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer ${
+            className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer text-center ${
               mode === 'register'
                 ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-sm border border-slate-200/80 dark:border-slate-700 font-extrabold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
-            <UserPlus className="w-4 h-4" />
-            <span>{language === 'np' ? 'दर्ता गर्नुहोस् (Register)' : 'Register'}</span>
+            <UserPlus className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{language === 'np' ? 'दर्ता गर्नुहोस्' : 'Register'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMode('reset');
+              setError(null);
+              setSuccessMsg(null);
+            }}
+            className={`py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer text-center ${
+              mode === 'reset'
+                ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-sm border border-slate-200/80 dark:border-slate-700 font-extrabold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{language === 'np' ? 'पासवर्ड रिसेट' : 'Reset Pass'}</span>
           </button>
         </div>
 
@@ -315,7 +401,7 @@ export const LoginPage: React.FC = () => {
                 )}
               </button>
 
-              <div className="text-center pt-1">
+              <div className="flex items-center justify-between pt-1 text-xs">
                 <button
                   type="button"
                   onClick={() => {
@@ -323,13 +409,24 @@ export const LoginPage: React.FC = () => {
                     setError(null);
                     setSuccessMsg(null);
                   }}
-                  className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-semibold cursor-pointer"
+                  className="text-orange-600 dark:text-orange-400 hover:underline font-semibold cursor-pointer"
                 >
-                  {language === 'np' ? 'खाता छैन? यहाँबाट नयाँ प्रयोगकर्ता दर्ता गर्नुहोस् →' : 'Don\'t have an account? Register here →'}
+                  {language === 'np' ? 'नयाँ खाता दर्ता गर्नुहोस् →' : 'Register new account →'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('reset');
+                    setError(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline font-medium cursor-pointer"
+                >
+                  {language === 'np' ? 'पासवर्ड बिर्सनुभयो? रिसेट गर्नुहोस्' : 'Forgot Password?'}
                 </button>
               </div>
             </form>
-          ) : (
+          ) : mode === 'register' ? (
             /* REGISTRATION FORM */
             <form onSubmit={handleRegister} className="space-y-3.5">
               <div>
@@ -389,19 +486,35 @@ export const LoginPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  {language === 'np' ? 'सम्पर्क फोन / Mobile Number' : 'Mobile Phone Number'}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    {language === 'np' ? 'सम्पर्क फोन / Mobile Number (१० अंक) *' : 'Mobile Phone Number (10 digits) *'}
+                  </label>
+                  <span className={`text-[10px] font-mono font-bold ${regPhone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {regPhone.length}/10 digits
+                  </span>
+                </div>
                 <div className="relative">
                   <input
-                    type="tel"
+                    type="text"
+                    maxLength={10}
                     value={regPhone}
-                    onChange={(e) => setRegPhone(e.target.value)}
-                    placeholder="98XXXXXXXX"
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-medium text-slate-900 dark:text-slate-100"
+                    onChange={(e) => setRegPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="98XXXXXXXX (numbers only, exactly 10 digits)"
+                    className={`w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition font-mono font-semibold text-slate-900 dark:text-slate-100 ${
+                      regPhone && regPhone.length !== 10
+                        ? 'border-rose-400 bg-rose-50/30'
+                        : 'border-slate-300 dark:border-slate-700'
+                    }`}
+                    required
                   />
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 </div>
+                {regPhone && regPhone.length !== 10 && (
+                  <span className="text-[10px] text-rose-600 font-semibold mt-0.5 block">
+                    {language === 'np' ? 'फोन नम्बर ठ्याक्कै १० अंकको हुनुपर्छ ।' : 'Phone must be exactly 10 digits (numbers only).'}
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -473,6 +586,137 @@ export const LoginPage: React.FC = () => {
                   className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-semibold cursor-pointer"
                 >
                   {language === 'np' ? 'पहिले नै दर्ता खाता छ? यहाँबाट साइन इन गर्नुहोस् →' : 'Already have an account? Sign In here →'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* RESET PASSWORD FORM */
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-3.5">
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl text-amber-800 dark:text-amber-300 text-xs font-medium">
+                {language === 'np'
+                  ? 'आफ्नो दर्ता युजरनेम र १० अंकको मोबाइल नम्बर प्रविष्ट गरी नयाँ पासवर्ड राख्नुहोस् ।'
+                  : 'Enter your registered Login ID and 10-digit mobile phone to reset your password.'}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  {language === 'np' ? 'दर्ता युजरनेम (Login ID) *' : 'Registered Login ID / Username *'}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={resetUsername}
+                    onChange={(e) => setResetUsername(e.target.value)}
+                    placeholder="e.g. admin or ram_shrestha"
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-mono text-slate-900 dark:text-slate-100 lowercase"
+                    autoFocus
+                    required
+                  />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    {language === 'np' ? 'दर्ता मोबाइल नम्बर (१० अंक) *' : 'Registered Mobile Phone (10 digits) *'}
+                  </label>
+                  <span className={`text-[10px] font-mono font-bold ${resetPhone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {resetPhone.length}/10 digits
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    maxLength={10}
+                    value={resetPhone}
+                    onChange={(e) => setResetPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="98XXXXXXXX (numbers only, exactly 10 digits)"
+                    className={`w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition font-mono font-semibold text-slate-900 dark:text-slate-100 ${
+                      resetPhone && resetPhone.length !== 10
+                        ? 'border-rose-400 bg-rose-50/30'
+                        : 'border-slate-300 dark:border-slate-700'
+                    }`}
+                    required
+                  />
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                </div>
+                {resetPhone && resetPhone.length !== 10 && (
+                  <span className="text-[10px] text-rose-600 font-semibold mt-0.5 block">
+                    {language === 'np' ? 'फोन नम्बर ठ्याक्कै १० अंकको हुनुपर्छ ।' : 'Phone must be exactly 10 digits (numbers only).'}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {language === 'np' ? 'नयाँ पासवर्ड / New Password *' : 'New Password *'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showResetPassword ? 'text' : 'password'}
+                      value={resetNewPassword}
+                      onChange={(e) => setResetNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-8 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-mono text-slate-900 dark:text-slate-100"
+                      required
+                    />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <button
+                      type="button"
+                      onClick={() => setShowResetPassword(!showResetPassword)}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    >
+                      {showResetPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {language === 'np' ? 'पासवर्ड पुष्टि *' : 'Confirm New Password *'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showResetPassword ? 'text' : 'password'}
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-mono text-slate-900 dark:text-slate-100"
+                      required
+                    />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer mt-1"
+              >
+                {loading ? (
+                  <span>{language === 'np' ? 'रिसेट गरिँदैछ...' : 'Resetting Password...'}</span>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>{language === 'np' ? 'पासवर्ड रिसेट गर्नुहोस्' : 'Reset Password & Proceed'}</span>
+                  </>
+                )}
+              </button>
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login');
+                    setError(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-semibold cursor-pointer"
+                >
+                  {language === 'np' ? 'साइन इनमा फर्किनुहोस् →' : 'Back to Sign In →'}
                 </button>
               </div>
             </form>

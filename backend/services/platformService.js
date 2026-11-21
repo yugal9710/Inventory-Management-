@@ -529,6 +529,8 @@ class PlatformService {
         name: payload.adminName || 'Store Admin',
         email: payload.adminEmail || `${slug}@anacraft.com`,
         username: payload.adminUsername || 'admin',
+        password: payload.adminPassword || 'admin123',
+        password_hash: payload.adminPassword || 'admin123',
         role: 'admin',
         phone: payload.phone || '',
         active: true
@@ -665,10 +667,25 @@ class PlatformService {
     if (payload.role) user.role = payload.role;
     if (payload.phone !== undefined) user.phone = payload.phone;
     if (payload.active !== undefined) user.active = payload.active;
+    if (payload.password) {
+      user.password = payload.password;
+      user.password_hash = payload.password;
+    }
 
     this.save(data);
     this.logAudit('USER_UPDATED', tenantId, `User "${user.username}" modified.`);
     return user;
+  }
+
+  resetTenantUserPassword(tenantId, userId, newPassword) {
+    const data = this.load();
+    const user = (data.users || []).find(u => u.tenantId === tenantId && u.id === userId);
+    if (!user) throw new Error('User not found');
+    user.password = newPassword;
+    user.password_hash = newPassword;
+    this.save(data);
+    this.logAudit('USER_PASSWORD_RESET', tenantId, `Password assigned/reset for user "${user.username}".`);
+    return { success: true, message: `Password successfully reset for user "${user.username}".` };
   }
 
   deleteTenantUser(tenantId, userId) {

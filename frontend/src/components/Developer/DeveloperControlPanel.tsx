@@ -89,6 +89,7 @@ export default function DeveloperControlPanel({ onTenantUpdated, onSwitchTenant 
     adminUsername: 'admin',
     adminEmail: '',
     adminName: '',
+    adminPassword: 'admin123',
     enableCutRemnants: true,
     enableCbmsSync: true,
     enableMultiYard: true,
@@ -232,6 +233,24 @@ export default function DeveloperControlPanel({ onTenantUpdated, onSwitchTenant 
 
   const handleCreateStore = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Enforce phone validation: Accept numbers only and require exactly 10 digits
+    const cleanPhone = (newStore.phone || '').trim();
+    if (!cleanPhone || !/^\d{10}$/.test(cleanPhone)) {
+      alert('Contact Phone is required, must contain numbers only, and must be exactly 10 digits.');
+      return;
+    }
+
+    if (newStore.pan && !/^\d{9}$/.test(newStore.pan.trim())) {
+      alert('Nepal PAN / VAT No. must contain numbers only and be 9 digits.');
+      return;
+    }
+
+    if (!newStore.adminPassword || newStore.adminPassword.trim().length < 4) {
+      alert('Assigned Admin Password must be at least 4 characters long.');
+      return;
+    }
+
     setActionProcessing(true);
     try {
       const res = await fetch('/api/platform/tenants', {
@@ -1214,14 +1233,34 @@ export default function DeveloperControlPanel({ onTenantUpdated, onSwitchTenant 
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">Contact Phone</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase">Contact Phone *</label>
+                    <span className={`text-[10px] font-mono font-bold ${newStore.phone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                      {newStore.phone.length}/10 digits
+                    </span>
+                  </div>
                   <input
                     type="text"
-                    placeholder="+977 98..."
+                    required
+                    maxLength={10}
+                    placeholder="98XXXXXXXX (10 digits only)"
                     value={newStore.phone}
-                    onChange={e => setNewStore({ ...newStore, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:bg-white outline-hidden"
+                    onChange={e => {
+                      // Accept numbers only and require exactly 10 digits. Do not allow letters, other characters, or more than 10 digits.
+                      const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setNewStore({ ...newStore, phone: onlyDigits });
+                    }}
+                    className={`w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold font-mono focus:bg-white outline-hidden transition ${
+                      newStore.phone && newStore.phone.length !== 10
+                        ? 'border-rose-400 bg-rose-50/50 text-rose-900'
+                        : 'border-slate-300'
+                    }`}
                   />
+                  {newStore.phone && newStore.phone.length !== 10 && (
+                    <span className="text-[10px] text-rose-600 font-semibold mt-0.5 block">
+                      Must be exactly 10 digits (currently {newStore.phone.length})
+                    </span>
+                  )}
                 </div>
 
                 <div>
@@ -1246,26 +1285,84 @@ export default function DeveloperControlPanel({ onTenantUpdated, onSwitchTenant 
                 </div>
               </div>
 
-              {/* Initial Admin Credentials */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Initial Store Administrator Account
-                </span>
+              {/* Initial Admin Credentials & Password Assignment */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Initial Store Administrator Account
+                  </span>
+                  <span className="text-[10px] font-bold text-orange-600 bg-orange-100/70 px-2 py-0.5 rounded-md border border-orange-200">
+                    Assign & Reset Password
+                  </span>
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Admin Username (default: admin)"
-                    value={newStore.adminUsername}
-                    onChange={e => setNewStore({ ...newStore, adminUsername: e.target.value })}
-                    className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold outline-hidden"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Admin Email"
-                    value={newStore.adminEmail}
-                    onChange={e => setNewStore({ ...newStore, adminEmail: e.target.value })}
-                    className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold outline-hidden"
-                  />
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Admin Username</label>
+                    <input
+                      type="text"
+                      placeholder="Admin Username (default: admin)"
+                      value={newStore.adminUsername}
+                      onChange={e => setNewStore({ ...newStore, adminUsername: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold outline-hidden"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Admin Email</label>
+                    <input
+                      type="email"
+                      placeholder="Admin Email"
+                      value={newStore.adminEmail}
+                      onChange={e => setNewStore({ ...newStore, adminEmail: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                {/* Assign / Reset Password Option */}
+                <div className="pt-2 border-t border-slate-200/80">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-bold text-slate-700 uppercase flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-slate-500" />
+                      <span>Assign Initial Password *</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const generated = 'Iron@' + Math.floor(1000 + Math.random() * 9000);
+                          setNewStore({ ...newStore, adminPassword: generated });
+                        }}
+                        className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                      >
+                        ⚡ Generate Password
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewStore({ ...newStore, adminPassword: 'admin123' })}
+                        className="text-[10px] font-bold text-slate-500 hover:text-slate-700 hover:underline cursor-pointer"
+                      >
+                        ↺ Reset (admin123)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter assigned password for administrator"
+                      value={newStore.adminPassword}
+                      onChange={e => setNewStore({ ...newStore, adminPassword: e.target.value })}
+                      className="w-full pl-3 pr-20 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-800 outline-hidden"
+                    />
+                    <span className="absolute right-2 top-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      Assigned
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    This password will be assigned to the initial admin user to sign into the store.
+                  </span>
                 </div>
               </div>
 
