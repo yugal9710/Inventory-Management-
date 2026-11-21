@@ -330,6 +330,18 @@ router.post('/:id/payment', (req, res) => {
       adDateStr = new Date().toISOString().split('T')[0];
     }
 
+    let newPaymentId;
+    let customerBalanceBefore = 0;
+    let customerBalanceAfter = 0;
+
+    // Calculate balances
+    const invoicesBefore = db.prepare('SELECT total_amount FROM sales WHERE customer_id = ?').all(customer.id);
+    const paymentsBefore = db.prepare("SELECT amount FROM payments WHERE party_type = 'CUSTOMER' AND party_id = ?").all(customer.id);
+    const totalInvoicedBefore = invoicesBefore.reduce((sum, inv) => sum + inv.total_amount, 0);
+    const totalPaidBefore = paymentsBefore.reduce((sum, p) => sum + p.amount, 0);
+    customerBalanceBefore = customer.opening_balance + totalInvoicedBefore - totalPaidBefore;
+    customerBalanceAfter = customerBalanceBefore - payAmt;
+
     db.transaction(() => {
       let allocatedInvoiceNo = null;
       let referenceType = 'ON_ACCOUNT';
@@ -384,7 +396,7 @@ router.post('/:id/payment', (req, res) => {
       }
 
       // Insert payment record
-      db.prepare(`
+      const insertInfo = db.prepare(`
         INSERT INTO payments (
           party_type, party_id, reference_type, reference_id, method,
           amount, date_ad, date_bs, reference_number, invoice_no, notes, received_by
@@ -406,6 +418,8 @@ router.post('/:id/payment', (req, res) => {
         userId
       );
 
+      newPaymentId = insertInfo.lastInsertRowid;
+
       // If method is cash, update active drawer session
       if (method === 'CASH') {
         const activeSession = db.prepare("SELECT id FROM cash_register_sessions WHERE status = 'OPEN' ORDER BY id DESC LIMIT 1").get();
@@ -419,7 +433,91 @@ router.post('/:id/payment', (req, res) => {
       }
     })();
 
-    res.json({ success: true, message: 'Payment recorded and Khata updated' });
+    const paymentRecord = db.prepare(`
+      SELECT p.*, u.full_name as received_by_name
+      FROM payments p
+      LEFT JOIN users u ON p.received_by = u.id
+      WHERE p.id = ?
+    `).get(newPaymentId);
+
+    res.json({
+      success: true,
+      message: 'Payment recorded and Khata updated',
+      paymentId: newPaymentId,
+      receipt_no: `VCH-${String(newPaymentId).padStart(5, '0')}`,
+      payment: paymentRecord,
+      previous_balance: Number(customerBalanceBefore.toFixed(2)),
+      current_balance: Number(customerBalanceAfter.toFixed(2))
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET payment receipt for printing (भुक्तानी जम्मा रसिद)
+router.get('/:id/payment/:paymentId/receipt', (req, res) => {
+  try {
+    const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
+    if (!customer) return res.status(404).json({ success: false, error: 'Customer not found' });
+
+    const payment = db.prepare(`
+      SELECT p.*, u.full_name as received_by_name
+      FROM payments p
+      LEFT JOIN users u ON p.received_by = u.id
+      WHERE p.id = ? AND p.party_id = ? AND p.party_type = 'CUSTOMER'
+    `).get(req.params.paymentId, customer.id);
+
+    if (!payment) return res.status(404).json({ success: false, error: 'Payment voucher not found' });
+
+    // Store settings
+    const settingsRows = db.prepare('SELECT key, value FROM settings').all();
+    const storeSettings = settingsRows.reduce((acc, row) => {
+      acc[row.key] = row.value;
+      return acc;
+    }, {});
+
+    // Calculate customer current balance and totals
+    const invoices = db.prepare('SELECT total_amount FROM sales WHERE customer_id = ?').all(customer.id);
+    const payments = db.prepare("SELECT amount FROM payments WHERE party_type = 'CUSTOMER' AND party_id = ?").all(customer.id);
+    const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.total_amount, 0);
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const currentBalance = customer.opening_balance + totalInvoiced - totalPaid;
+
+    res.json({
+      success: true,
+      data: {
+        receipt_no: `VCH-${String(payment.id).padStart(5, '0')}`,
+        voucher_id: payment.id,
+        date_bs: payment.date_bs,
+        date_ad: payment.date_ad,
+        method: payment.method,
+        amount: payment.amount,
+        reference_number: payment.reference_number,
+        invoice_no: payment.invoice_no,
+        notes: payment.notes,
+        received_by_name: payment.received_by_name || 'Cashier',
+        is_reversal: payment.is_reversal,
+        customer: {
+          id: customer.id,
+          customer_code: customer.customer_code,
+          name: customer.name,
+          phone: customer.phone,
+          address: customer.address || customer.temporary_address || customer.permanent_address,
+          pan_vat: customer.pan_vat,
+          current_balance: Number(currentBalance.toFixed(2))
+        },
+        store: {
+          shop_name_en: storeSettings.shop_name_en || 'Shree Krishna Iron & Construction Materials',
+          shop_name_np: storeSettings.shop_name_np || 'श्री कृष्ण फलाम तथा निर्माण सामग्री भण्डार',
+          pan_number: storeSettings.pan_number || '304892716',
+          ird_reg_no: storeSettings.ird_reg_no || 'IRD-KTM-2081-4491',
+          address_en: storeSettings.address_en || 'Imadol Ring Road, Lalitpur, Nepal',
+          address_np: storeSettings.address_np || 'इमाडोल चक्रपथ, ललितपुर, नेपाल',
+          phone: storeSettings.phone || '+977-1-5201982, 9851087654',
+          email: storeSettings.email || 'contact@shreekrishnairon.com.np'
+        }
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
