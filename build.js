@@ -20,11 +20,10 @@ function syncDirectories(src, dest) {
 }
 
 async function run() {
-  // If frontend/package.json exists and dist is missing or needs building, attempt Vite build
-  if (!fs.existsSync(path.join(BUILD_DIR, 'index.html')) && fs.existsSync(path.join(FRONTEND_DIR, 'package.json'))) {
+  // Ensure fresh build if frontend source is present
+  if (fs.existsSync(path.join(FRONTEND_DIR, 'package.json'))) {
     console.log('Attempting frontend build with Vite...');
     try {
-      execSync('npm --prefix frontend install --include=dev', { cwd: ROOT_DIR, stdio: 'inherit' });
       execSync('npm --prefix frontend run build', { cwd: ROOT_DIR, stdio: 'inherit' });
     } catch (err) {
       console.warn('Frontend build note:', err.message);
@@ -32,12 +31,12 @@ async function run() {
   }
 
   // Ensure both build/ and frontend/dist/ have the latest bundled assets
-  if (fs.existsSync(path.join(BUILD_DIR, 'index.html'))) {
+  if (fs.existsSync(path.join(FRONTEND_DIST, 'index.html'))) {
+    console.log('✓ Found frontend/dist bundle. Syncing to "build/"...');
+    syncDirectories(FRONTEND_DIST, BUILD_DIR);
+  } else if (fs.existsSync(path.join(BUILD_DIR, 'index.html'))) {
     console.log('✓ Verified production bundle in "build/" directory.');
     syncDirectories(BUILD_DIR, FRONTEND_DIST);
-  } else if (fs.existsSync(path.join(FRONTEND_DIST, 'index.html'))) {
-    console.log('✓ Found frontend/dist bundle. Copying to "build/"...');
-    syncDirectories(FRONTEND_DIST, BUILD_DIR);
   } else {
     console.warn('⚠️ Warning: No pre-built index.html found.');
   }
