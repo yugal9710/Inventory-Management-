@@ -15,6 +15,88 @@ function generateToken(user) {
   return Buffer.from(JSON.stringify(payload)).toString('base64');
 }
 
+// POST /api/auth/register
+router.post('/register', (req, res) => {
+  try {
+    const { username, password, full_name, role, phone } = req.body;
+    const cleanUser = (username || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+    const cleanName = (full_name || '').trim();
+    const cleanPhone = (phone || '').trim();
+    const cleanRole = (role || 'cashier').trim();
+
+    if (!cleanUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username / Login ID is required. / प्रयोगकर्ता नाम अनिवार्य छ ।'
+      });
+    }
+    if (cleanUser.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username must be at least 3 characters long. / प्रयोगकर्ता नाम कम्तिमा ३ अक्षरको हुनुपर्छ ।'
+      });
+    }
+    if (!/^[a-zA-Z0-9_.-]+$/.test(cleanUser)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username can only contain letters, numbers, underscores, and dots.'
+      });
+    }
+    if (!cleanPass || cleanPass.length < 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 4 characters long. / पासवर्ड कम्तिमा ४ अक्षरको हुनुपर्छ ।'
+      });
+    }
+    if (!cleanName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Full name is required. / पूरा नाम अनिवार्य छ ।'
+      });
+    }
+
+    const validRoles = ['admin', 'cashier', 'storekeeper', 'accountant'];
+    const assignedRole = validRoles.includes(cleanRole) ? cleanRole : 'cashier';
+
+    // Verify user is not already registered
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = ? OR (phone IS NOT NULL AND phone != \'\' AND phone = ?)').get(cleanUser, cleanPhone || '__dummy__');
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'A user with this username or phone number is already registered. Please sign in instead. / यो नाम वा फोन नम्बर पहिले नै दर्ता छ ।'
+      });
+    }
+
+    const insertStmt = db.prepare(`
+      INSERT INTO users (username, password_hash, full_name, role, phone, active, created_at)
+      VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+    `);
+    const result = insertStmt.run(cleanUser, cleanPass, cleanName, assignedRole, cleanPhone || null);
+
+    const newUser = {
+      id: Number(result.lastInsertRowid),
+      username: cleanUser,
+      full_name: cleanName,
+      role: assignedRole,
+      phone: cleanPhone || null,
+      active: 1
+    };
+
+    const token = generateToken(newUser);
+
+    res.status(201).json({
+      success: true,
+      message: 'Account registered successfully! You are now registered and signed in. / नयाँ खाता सफलतापूर्वक दर्ता भयो ।',
+      token,
+      user: newUser
+    });
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ success: false, message: 'Server error during registration: ' + err.message });
+  }
+});
+
 // POST /api/auth/login
 router.post('/login', (req, res) => {
   try {
@@ -25,11 +107,11 @@ router.post('/login', (req, res) => {
     if (!cleanUser || !cleanPass) {
       return res.status(400).json({
         success: false,
-        message: 'Username and password are required / प्रयोगकर्ता नाम र पासवर्ड अनिवार्य छ ।'
+        message: 'Username and password are required. / प्रयोगकर्ता नाम र पासवर्ड अनिवार्य छ ।'
       });
     }
 
-    // Look up user in SQLite
+    // Look up registered user in SQLite
     const user = db.prepare(`
       SELECT id, username, password_hash, full_name, role, phone, active 
       FROM users 
@@ -39,7 +121,7 @@ router.post('/login', (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password. Access denied. / गलत विवरण । लगइन अस्वीकृत ।'
+        message: 'Unregistered user. No account found for this Login ID. Please register first. / दर्ता नभएको प्रयोगकर्ता । पहिले दर्ता गर्नुहोस् ।'
       });
     }
 
@@ -50,12 +132,12 @@ router.post('/login', (req, res) => {
       });
     }
 
-    // Verify password (plain text or hash)
+    // Verify password
     const valid = (user.password_hash === cleanPass);
     if (!valid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password. Access denied. / गलत पासवर्ड । लगइन अस्वीकृत ।'
+        message: 'Incorrect password. Access denied. / गलत पासवर्ड । लगइन अस्वीकृत ।'
       });
     }
 
@@ -107,16 +189,6 @@ router.get('/me', (req, res) => {
     });
   } catch (err) {
     res.status(401).json({ success: false, message: 'Invalid session token' });
-  }
-});
-
-// GET /api/auth/demo-users
-router.get('/demo-users', (req, res) => {
-  try {
-    const users = db.prepare('SELECT id, username, full_name, role, phone FROM users WHERE active = 1 ORDER BY id ASC').all();
-    res.json({ success: true, users });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
   }
 });
 

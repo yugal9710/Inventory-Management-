@@ -1,23 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 
+export interface RegisterPayload {
+  username: string;
+  password: string;
+  full_name: string;
+  role?: UserRole;
+  phone?: string;
+}
+
 interface AuthContextType {
   currentUser: User | null;
   token: string | null;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; message?: string; user?: User }>;
+  register: (payload: RegisterPayload) => Promise<{ success: boolean; message?: string; user?: User }>;
   logout: () => void;
-  switchRole: (role: UserRole) => void;
   canAccess: (allowedRoles: UserRole[]) => boolean;
 }
-
-const defaultUsers: Record<UserRole, User> = {
-  super_admin: { id: 5, username: 'superadmin', full_name: 'Anaya Craft (Software Owner)', role: 'super_admin', phone: '9851087654', active: 1 },
-  admin: { id: 1, username: 'admin', full_name: 'Dinesh Sharma (Owner)', role: 'admin', phone: '9851087654', active: 1 },
-  cashier: { id: 2, username: 'cashier', full_name: 'Suman Thapa (Cashier)', role: 'cashier', phone: '9841234567', active: 1 },
-  storekeeper: { id: 3, username: 'storekeeper', full_name: 'Bikash Tamang (Storekeeper)', role: 'storekeeper', phone: '9812345678', active: 1 },
-  accountant: { id: 4, username: 'accountant', full_name: 'Pooja Shrestha (Accountant)', role: 'accountant', phone: '9801234567', active: 1 },
-};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -39,6 +39,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
   });
+
+  // Verify stored session on app mount against backend database
+  useEffect(() => {
+    const verifyStoredSession = async () => {
+      const storedToken = localStorage.getItem('iron_store_token');
+      if (!storedToken) {
+        setCurrentUser(null);
+        setToken(null);
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: {
+            Authorization: `Bearer ${storedToken}`,
+          },
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          setCurrentUser(data.user);
+        } else {
+          // Token invalid or unregistered user - clear session
+          setCurrentUser(null);
+          setToken(null);
+          localStorage.removeItem('iron_store_user');
+          localStorage.removeItem('iron_store_token');
+        }
+      } catch (err) {
+        console.warn('Session verification error:', err);
+      }
+    };
+    verifyStoredSession();
+  }, []);
 
   // Keep localStorage in sync
   useEffect(() => {
@@ -91,18 +123,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const register = async (payload: RegisterPayload): Promise<{ success: boolean; message?: string; user?: User }> => {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          message: data.message || 'Registration failed.',
+        };
+      }
+
+      const registeredUser: User = data.user;
+      if (data.token && registeredUser) {
+        setCurrentUser(registeredUser);
+        setToken(data.token);
+      }
+
+      return {
+        success: true,
+        message: data.message,
+        user: registeredUser,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Unable to connect to registration server.',
+      };
+    }
+  };
+
   const logout = () => {
     setCurrentUser(null);
     setToken(null);
     localStorage.removeItem('iron_store_user');
     localStorage.removeItem('iron_store_token');
-  };
-
-  const switchRole = (role: UserRole) => {
-    const roleUser = defaultUsers[role];
-    if (roleUser) {
-      setCurrentUser(roleUser);
-    }
   };
 
   const canAccess = (allowedRoles: UserRole[]): boolean => {
@@ -117,8 +179,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: !!currentUser,
         login,
+        register,
         logout,
-        switchRole,
         canAccess,
       }}
     >

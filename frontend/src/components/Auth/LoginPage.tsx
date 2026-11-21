@@ -13,17 +13,18 @@ import {
   Copy,
   Check,
   ShieldCheck,
-  Building2,
-  HardHat,
-  Truck,
-  Scale
+  UserPlus,
+  LogIn,
+  CheckCircle2,
+  Briefcase
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, RegisterPayload } from '../../context/AuthContext';
+import { UserRole } from '../../types';
 import { AnayaCraftEmblem, AnayaCraftLogo } from '../Common/AnayaCraftLogo';
 import ThemeSwitcher from '../Common/ThemeSwitcher';
 
-// Dedicated Official WhatsApp Vector Icon (matching Dairy 2.0)
+// Dedicated Official WhatsApp Vector Icon
 function WhatsAppIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -34,16 +35,31 @@ function WhatsAppIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
 
 export const LoginPage: React.FC = () => {
   const { language, setLanguage } = useLanguage();
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  // Mode: 'login' or 'register'
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+
+  // Login form state (empty by default - no shortcuts)
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Register form state
+  const [regFullName, setRegFullName] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regRole, setRegRole] = useState<UserRole>('cashier');
+  const [regPhone, setRegPhone] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Support Contacts matching Dairy 2.0 architecture
+  // Support Contacts
   const supportPhone = '+977 98510 87654';
   const supportPhoneClean = supportPhone.replace(/[^0-9+]/g, '');
   const supportEmail = 'support@anacraft.com';
@@ -64,15 +80,17 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  // Sign in handler
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setError(language === 'np' ? 'कृपया प्रयोगकर्ता नाम र पासवर्ड राख्नुहोस् ।' : 'Username and password are required.');
+      setError(language === 'np' ? 'कृपया प्रयोगकर्ता नाम र पासवर्ड राख्नुहोस् ।' : 'Please enter your login ID and password.');
       return;
     }
 
     setLoading(true);
     setError(null);
+    setSuccessMsg(null);
 
     const res = await login(username.trim(), password.trim());
     if (!res.success) {
@@ -81,10 +99,65 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const setDemoRole = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
+  // Registration handler
+  const handleRegister = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError(null);
+    setSuccessMsg(null);
+
+    const cleanName = regFullName.trim();
+    const cleanUser = regUsername.trim().toLowerCase();
+    const cleanPhone = regPhone.trim();
+    const cleanPass = regPassword.trim();
+    const cleanConfirm = regConfirmPassword.trim();
+
+    if (!cleanName) {
+      setError(language === 'np' ? 'कृपया पूरा नाम राख्नुहोस् ।' : 'Please enter your full name.');
+      return;
+    }
+    if (!cleanUser) {
+      setError(language === 'np' ? 'कृपया प्रयोगकर्ता नाम (Login ID) राख्नुहोस् ।' : 'Please enter a username / Login ID.');
+      return;
+    }
+    if (cleanUser.length < 3) {
+      setError(language === 'np' ? 'प्रयोगकर्ता नाम कम्तिमा ३ अक्षरको हुनुपर्छ ।' : 'Username must be at least 3 characters.');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_.-]+$/.test(cleanUser)) {
+      setError(language === 'np' ? 'प्रयोगकर्ता नाममा अक्षर, अंक, र underscore मात्र हुनुपर्छ ।' : 'Username can only contain letters, numbers, and underscores.');
+      return;
+    }
+    if (!cleanPass) {
+      setError(language === 'np' ? 'कृपया पासवर्ड राख्नुहोस् ।' : 'Please enter a password.');
+      return;
+    }
+    if (cleanPass.length < 4) {
+      setError(language === 'np' ? 'पासवर्ड कम्तिमा ४ अक्षरको हुनुपर्छ ।' : 'Password must be at least 4 characters long.');
+      return;
+    }
+    if (cleanPass !== cleanConfirm) {
+      setError(language === 'np' ? 'पासवर्ड र पुष्टि पासवर्ड मिलेन ।' : 'Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+
+    const payload: RegisterPayload = {
+      username: cleanUser,
+      password: cleanPass,
+      full_name: cleanName,
+      role: regRole,
+      phone: cleanPhone || undefined,
+    };
+
+    const res = await register(payload);
+    if (!res.success) {
+      setError(res.message || (language === 'np' ? 'दर्ता असफल भयो ।' : 'Registration failed.'));
+      setLoading(false);
+    } else {
+      setSuccessMsg(language === 'np' ? 'नयाँ खाता सफलतापूर्वक दर्ता गरियो !' : 'Account registered successfully! Access granted.');
+      // Auto-authenticated by register method; system will transition into AppContent
+    }
   };
 
   return (
@@ -103,8 +176,13 @@ export const LoginPage: React.FC = () => {
               <AnayaCraftEmblem size={44} />
               <div className="min-w-0">
                 <h2 className="text-base sm:text-lg font-black tracking-tight text-white truncate">
-                  {language === 'en' ? 'Iron Store ERP 2.0 Sign In' : 'फलाम तथा स्टिल ईआरपी २.० लगइन'}
+                  {language === 'en' ? 'Iron Store ERP 2.0' : 'फलाम तथा स्टिल ईआरपी २.०'}
                 </h2>
+                <p className="text-[11px] text-slate-400 font-medium truncate">
+                  {mode === 'login'
+                    ? (language === 'en' ? 'Sign In to your authorized account' : 'आफ्नो आधिकारिक खातामा लगइन गर्नुहोस्')
+                    : (language === 'en' ? 'Register New User Profile' : 'नयाँ प्रयोगकर्ता खाता दर्ता गर्नुहोस्')}
+                </p>
               </div>
             </div>
 
@@ -124,8 +202,45 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Main Body */}
-        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[82vh]">
+        {/* Mode Switch Tabs: Sign In vs Register */}
+        <div className="grid grid-cols-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/60 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('login');
+              setError(null);
+              setSuccessMsg(null);
+            }}
+            className={`py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer ${
+              mode === 'login'
+                ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-sm border border-slate-200/80 dark:border-slate-700 font-extrabold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <LogIn className="w-4 h-4" />
+            <span>{language === 'np' ? 'साइन इन (Sign In)' : 'Sign In'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMode('register');
+              setError(null);
+              setSuccessMsg(null);
+            }}
+            className={`py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer ${
+              mode === 'register'
+                ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-sm border border-slate-200/80 dark:border-slate-700 font-extrabold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>{language === 'np' ? 'दर्ता गर्नुहोस् (Register)' : 'Register'}</span>
+          </button>
+        </div>
+
+        {/* Main Form Body */}
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto max-h-[78vh]">
           {error && (
             <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl flex items-center gap-2.5 text-rose-700 dark:text-rose-300 text-xs font-semibold animate-shake">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -133,172 +248,237 @@ export const LoginPage: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                {language === 'np' ? 'प्रयोगकर्ता नाम / User ID' : 'Username or User ID'}
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="e.g. admin or cashier"
-                  className="w-full pl-9 pr-3 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-medium"
-                  autoFocus
-                  autoComplete="username"
-                />
-                <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              </div>
+          {successMsg && (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center gap-2.5 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+              <span>{successMsg}</span>
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                {language === 'np' ? 'पासवर्ड / Password' : 'Password'}
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-9 pr-9 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-mono"
-                  autoComplete="current-password"
-                />
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          {/* SIGN IN FORM */}
+          {mode === 'login' ? (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  {language === 'np' ? 'प्रयोगकर्ता नाम / Login ID *' : 'Username or Login ID *'}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder={language === 'np' ? 'आफ्नो लगइन आईडी राख्नुहोस्' : 'Enter registered Login ID'}
+                    className="w-full pl-9 pr-3 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-medium text-slate-900 dark:text-slate-100"
+                    autoFocus
+                    autoComplete="username"
+                  />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  {language === 'np' ? 'पासवर्ड / Password *' : 'Password *'}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-9 pr-9 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-mono text-slate-900 dark:text-slate-100"
+                    autoComplete="current-password"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? (
+                  <span>{language === 'np' ? 'प्रमाणीकरण हुँदैछ...' : 'Authenticating...'}</span>
+                ) : (
+                  <>
+                    <span>{language === 'np' ? 'ईआरपीमा लगइन गर्नुहोस्' : 'Sign In to Iron Store ERP'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="text-center pt-1">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  onClick={() => {
+                    setMode('register');
+                    setError(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-semibold cursor-pointer"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {language === 'np' ? 'खाता छैन? यहाँबाट नयाँ प्रयोगकर्ता दर्ता गर्नुहोस् →' : 'Don\'t have an account? Register here →'}
                 </button>
               </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? (
-                <span>{language === 'np' ? 'प्रमाणीकरण हुँदैछ...' : 'Authenticating...'}</span>
-              ) : (
-                <>
-                  <span>{language === 'np' ? 'ईआरपीमा लगइन गर्नुहोस्' : 'Sign In to Iron Store ERP'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Quick Demo Credentials Selection (Fast Login Testing) */}
-          <div className="pt-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {language === 'np' ? 'द्रुत लगइन छनौट (Demo Roles)' : 'Select Role to Autofill'}
-              </span>
-              <span className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold">
-                Click to load
-              </span>
-            </div>
-
-            {/* Software Owner / Super Admin Card */}
-            <button
-              type="button"
-              onClick={() => setDemoRole('superadmin', 'superadmin123')}
-              className={`w-full mb-2 p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
-                username === 'superadmin'
-                  ? 'border-amber-500 bg-amber-50/80 dark:bg-amber-950/40 ring-1 ring-amber-500'
-                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-              }`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0">
-                  ★
+            </form>
+          ) : (
+            /* REGISTRATION FORM */
+            <form onSubmit={handleRegister} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  {language === 'np' ? 'पूरा नाम / Full Name *' : 'Full Name *'}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={regFullName}
+                    onChange={(e) => setRegFullName(e.target.value)}
+                    placeholder={language === 'np' ? 'उदा. राम बहादुर श्रेष्ठ' : 'e.g. Ram Bahadur Shrestha'}
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-medium text-slate-900 dark:text-slate-100"
+                    autoFocus
+                    required
+                  />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-slate-900 dark:text-white text-xs truncate">
-                    {language === 'np' ? 'सुपर एडमिन (सफ्टवेयर ओनर)' : 'Super Admin (Software Owner)'}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {language === 'np' ? 'लगइन आईडी (User ID) *' : 'Login ID / Username *'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={regUsername}
+                      onChange={(e) => setRegUsername(e.target.value)}
+                      placeholder="e.g. ram_shrestha"
+                      className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-mono text-slate-900 dark:text-slate-100 lowercase"
+                      required
+                    />
+                    <ShieldCheck className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                   </div>
-                  <div className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate">
-                    {language === 'np' ? 'डेभलपर कन्सोल सहित सम्पूर्ण पहुँच' : 'Full Platform & Developer Console Access'}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {language === 'np' ? 'पद / Role *' : 'Assigned Role *'}
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={regRole}
+                      onChange={(e) => setRegRole(e.target.value as UserRole)}
+                      className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-medium text-slate-900 dark:text-slate-100 cursor-pointer"
+                    >
+                      <option value="cashier">Cashier / बिलिङ काउन्टर</option>
+                      <option value="storekeeper">Storekeeper / गोदाम इन्चार्ज</option>
+                      <option value="accountant">Accountant / लेखापाल</option>
+                      <option value="admin">Owner / Store Admin</option>
+                    </select>
+                    <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                   </div>
                 </div>
               </div>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono shrink-0 ml-2">
-                superadmin / superadmin123
-              </span>
-            </button>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setDemoRole('admin', 'admin123')}
-                className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 cursor-pointer ${
-                  username === 'admin'
-                    ? 'border-orange-500 bg-orange-50/70 dark:bg-orange-950/30'
-                    : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <div className="font-bold text-slate-900 dark:text-white text-[11px]">Owner / Admin</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">admin / admin123</div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  {language === 'np' ? 'सम्पर्क फोन / Mobile Number' : 'Mobile Phone Number'}
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    placeholder="98XXXXXXXX"
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-medium text-slate-900 dark:text-slate-100"
+                  />
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {language === 'np' ? 'पासवर्ड / Password *' : 'Password *'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showRegPassword ? 'text' : 'password'}
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-8 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-mono text-slate-900 dark:text-slate-100"
+                      required
+                    />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    >
+                      {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    {language === 'np' ? 'पासवर्ड पुष्टि *' : 'Confirm Password *'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showRegPassword ? 'text' : 'password'}
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition font-mono text-slate-900 dark:text-slate-100"
+                      required
+                    />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-orange-600/25 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer mt-1"
+              >
+                {loading ? (
+                  <span>{language === 'np' ? 'दर्ता हुँदैछ...' : 'Registering User Account...'}</span>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" />
+                    <span>{language === 'np' ? 'खाता दर्ता गरी ईआरपी खोल्नुहोस्' : 'Register & Access Iron Store ERP'}</span>
+                  </>
+                )}
               </button>
 
-              <button
-                type="button"
-                onClick={() => setDemoRole('cashier', 'cashier123')}
-                className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 cursor-pointer ${
-                  username === 'cashier'
-                    ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30'
-                    : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <Scale className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <div className="font-bold text-slate-900 dark:text-white text-[11px]">Cashier / बिलिङ</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">cashier / cashier123</div>
-                </div>
-              </button>
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login');
+                    setError(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="text-xs text-orange-600 dark:text-orange-400 hover:underline font-semibold cursor-pointer"
+                >
+                  {language === 'np' ? 'पहिले नै दर्ता खाता छ? यहाँबाट साइन इन गर्नुहोस् →' : 'Already have an account? Sign In here →'}
+                </button>
+              </div>
+            </form>
+          )}
 
-              <button
-                type="button"
-                onClick={() => setDemoRole('storekeeper', 'store123')}
-                className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 cursor-pointer ${
-                  username === 'storekeeper'
-                    ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/30'
-                    : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <Truck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <div className="font-bold text-slate-900 dark:text-white text-[11px]">Storekeeper / गोदाम</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">storekeeper / store123</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDemoRole('accountant', 'account123')}
-                className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 cursor-pointer ${
-                  username === 'accountant'
-                    ? 'border-purple-500 bg-purple-50/70 dark:bg-purple-950/30'
-                    : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <Building2 className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <div className="font-bold text-slate-900 dark:text-white text-[11px]">Accountant / लेखा</div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">accountant / account123</div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Customer Support & Helpdesk Section (Matching Dairy 2.0) */}
+          {/* Customer Support & Helpdesk Section */}
           <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
             <div className="bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/30 dark:from-slate-800/80 dark:via-slate-800/50 dark:to-slate-900 rounded-2xl p-3 border border-slate-200/90 dark:border-slate-700/80 shadow-xs space-y-2.5">
               <div className="flex items-center justify-between">
@@ -315,7 +495,7 @@ export const LoginPage: React.FC = () => {
                       </span>
                     </h4>
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                      {language === 'en' ? 'Need help with sign in or credentials?' : 'लगइन वा पासवर्डमा समस्या भयो?'}
+                      {language === 'en' ? 'Need help with registration or credentials?' : 'दर्ता वा पासवर्डमा समस्या भएमा सम्पर्क गर्नुहोस्'}
                     </p>
                   </div>
                 </div>
