@@ -211,6 +211,24 @@ export const Customers: React.FC = () => {
       return;
     }
 
+    // Strict 10-digit numeric phone validation
+    const cleanPhone = (customerForm.phone || '').trim();
+    if (!cleanPhone || !/^\d{10}$/.test(cleanPhone)) {
+      alert(language === 'np' ? 'प्राथमिक मोबाइल नम्बर अनिवार्य रूपमा १० अंकको हुनुपर्छ (संख्या मात्र) ।' : 'Primary Phone is required, must contain numbers only, and must be exactly 10 digits.');
+      return;
+    }
+
+    const cleanSecPhone = (customerForm.secondary_phone || '').trim();
+    if (cleanSecPhone && !/^\d{10}$/.test(cleanSecPhone)) {
+      alert(language === 'np' ? 'वैकल्पिक सम्पर्क नम्बर १० अंकको हुनुपर्छ (संख्या मात्र) ।' : 'Secondary Phone must contain numbers only and be exactly 10 digits.');
+      return;
+    }
+
+    if (customerForm.pan_vat && !/^\d{9}$/.test(customerForm.pan_vat.trim())) {
+      alert(language === 'np' ? 'प्यान नम्बर ९ अंकको हुनुपर्छ (संख्या मात्र) ।' : 'Nepal PAN / VAT No must contain numbers only and be exactly 9 digits.');
+      return;
+    }
+
     try {
       const permComposed = formatFullNepalAddress(permanentLocation, language === 'np' ? 'np' : 'en');
       const tempComposed = sameAsPermanent
@@ -946,12 +964,18 @@ export const Customers: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* Primary Phone */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      {language === 'np' ? 'प्राथमिक मोबाइल नं.' : 'Primary Phone / Mobile'}
-                      <span className="text-rose-500 ml-0.5">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        {language === 'np' ? 'प्राथमिक मोबाइल नं.' : 'Primary Phone / Mobile'}
+                        <span className="text-rose-500 ml-0.5">*</span>
+                      </label>
+                      <span className={`text-[10px] font-mono font-bold ${customerForm.phone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {customerForm.phone.length}/10 digits
+                      </span>
+                    </div>
                     <input
-                      type="text"
+                      type="tel"
+                      inputMode="numeric"
                       required
                       maxLength={10}
                       placeholder="98XXXXXXXX (10 digits)"
@@ -977,15 +1001,21 @@ export const Customers: React.FC = () => {
 
                   {/* PAN / VAT */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      {language === 'np' ? 'स्थायी लेखा नं. (PAN / VAT)' : 'PAN / VAT No (9 Digits)'}
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        {language === 'np' ? 'स्थायी लेखा नं. (PAN / VAT)' : 'PAN / VAT No (9 Digits)'}
+                      </label>
+                      <span className={`text-[10px] font-mono font-bold ${customerForm.pan_vat.length === 9 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {customerForm.pan_vat.length}/9 digits
+                      </span>
+                    </div>
                     <input
                       type="text"
+                      inputMode="numeric"
                       maxLength={9}
-                      placeholder="9 digits"
+                      placeholder="9 digits (numbers only)"
                       value={customerForm.pan_vat}
-                      onChange={(e) => setCustomerForm({ ...customerForm, pan_vat: e.target.value })}
+                      onChange={(e) => setCustomerForm({ ...customerForm, pan_vat: e.target.value.replace(/\D/g, '').slice(0, 9) })}
                       className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 font-mono font-medium text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-orange-500 outline-none"
                     />
                   </div>
@@ -994,14 +1024,21 @@ export const Customers: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Secondary Phone */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      {language === 'np' ? 'वैकल्पिक सम्पर्क नं.' : 'Secondary / Landline Phone'}
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        {language === 'np' ? 'वैकल्पिक सम्पर्क नं.' : 'Secondary / Landline Phone'}
+                      </label>
+                      <span className={`text-[10px] font-mono font-bold ${customerForm.secondary_phone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {customerForm.secondary_phone.length}/10 digits
+                      </span>
+                    </div>
                     <input
-                      type="text"
-                      placeholder="e.g. 01-XXXXXXX"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="10 digits only (optional)"
                       value={customerForm.secondary_phone}
-                      onChange={(e) => setCustomerForm({ ...customerForm, secondary_phone: e.target.value })}
+                      onChange={(e) => setCustomerForm({ ...customerForm, secondary_phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                       className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 font-mono text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-orange-500 outline-none"
                     />
                   </div>

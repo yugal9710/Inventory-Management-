@@ -23,9 +23,19 @@ router.post('/register', (req, res) => {
     const cleanUser = (username || '').trim().toLowerCase();
     const cleanPass = (password || '').trim();
     const cleanName = (full_name || '').trim();
-    const cleanPhone = (phone || '').trim();
     const cleanRole = (role || 'cashier').trim();
     const currentTenantId = req.tenantId || 'tenant-jagdamba-iron';
+
+    let cleanPhone = null;
+    if (phone) {
+      cleanPhone = String(phone).replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number must contain numbers only and be exactly 10 digits. / फोन नम्बर १० अंकको हुनुपर्छ ।'
+        });
+      }
+    }
 
     if (!cleanUser) {
       return res.status(400).json({

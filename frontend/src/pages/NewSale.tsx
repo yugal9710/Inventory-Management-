@@ -276,6 +276,16 @@ export const NewSale: React.FC = () => {
       return;
     }
 
+    if (isWalkIn && walkInPhone && walkInPhone.length !== 10) {
+      setErrorMsg('Walk-in customer phone number must contain numbers only and be exactly 10 digits.');
+      return;
+    }
+
+    if (isWalkIn && walkInPan && walkInPan.length !== 9) {
+      setErrorMsg('Walk-in buyer PAN must contain numbers only and be exactly 9 digits.');
+      return;
+    }
+
     if (!isWalkIn && !selectedCustomer) {
       setErrorMsg('Please select a customer for account billing');
       return;
@@ -425,11 +435,22 @@ export const NewSale: React.FC = () => {
                 className="text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 flex-1"
               />
               <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="Phone (10 digits)"
+                value={walkInPhone}
+                onChange={(e) => setWalkInPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                className="text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 w-36 font-mono"
+              />
+              <input
                 type="text"
-                placeholder="Buyer PAN (Optional)"
+                inputMode="numeric"
+                maxLength={9}
+                placeholder="Buyer PAN (9 digits)"
                 value={walkInPan}
-                onChange={(e) => setWalkInPan(e.target.value)}
-                className="text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 w-32 font-mono"
+                onChange={(e) => setWalkInPan(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                className="text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 w-36 font-mono"
               />
             </div>
           )}

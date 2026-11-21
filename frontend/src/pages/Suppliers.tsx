@@ -749,7 +749,8 @@ export const Suppliers: React.FC = () => {
                   <input
                     type="tel"
                     inputMode="numeric"
-                    placeholder="98XXXXXXXX"
+                    maxLength={10}
+                    placeholder="98XXXXXXXX (10 digits)"
                     value={supplierForm.phone}
                     onChange={(e) => {
                       const clean = e.target.value.replace(/\D/g, '').slice(0, 10);

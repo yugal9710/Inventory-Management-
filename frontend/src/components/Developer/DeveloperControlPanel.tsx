@@ -1698,11 +1698,19 @@ export default function DeveloperControlPanel({ onTenantUpdated, onSwitchTenant 
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">Fonepay Merchant ID / Phone</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase">Fonepay Merchant ID / Phone</label>
+                    <span className="text-[9px] font-mono font-bold text-slate-400">
+                      {paymentConfigForm.fonepayMerchantId ? paymentConfigForm.fonepayMerchantId.length : 0}/10 digits
+                    </span>
+                  </div>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    maxLength={10}
+                    placeholder="98XXXXXXXX (10 digits)"
                     value={paymentConfigForm.fonepayMerchantId}
-                    onChange={e => setPaymentConfigForm({ ...paymentConfigForm, fonepayMerchantId: e.target.value })}
+                    onChange={e => setPaymentConfigForm({ ...paymentConfigForm, fonepayMerchantId: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold font-mono outline-hidden"
                   />
                 </div>

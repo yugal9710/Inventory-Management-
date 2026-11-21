@@ -79,6 +79,16 @@ export const Settings: React.FC = () => {
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (settings.phone && !/^\d{10}$/.test(settings.phone.trim())) {
+      alert('Store Phone number must contain numbers only and be exactly 10 digits.');
+      return;
+    }
+    if (settings.pan_number && !/^\d{9}$/.test(settings.pan_number.trim())) {
+      alert('Nepal PAN / VAT Number must contain numbers only and be exactly 9 digits.');
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch('/api/settings', {
@@ -230,12 +240,20 @@ export const Settings: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">PAN / VAT Number (स्थायी लेखा नं.) *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700">PAN / VAT Number (स्थायी लेखा नं.) *</label>
+                  <span className="text-xs font-mono font-bold text-slate-400">
+                    {settings.pan_number ? settings.pan_number.length : 0}/9 digits
+                  </span>
+                </div>
                 <input
                   type="text"
+                  inputMode="numeric"
                   required
+                  maxLength={9}
+                  placeholder="9 digits (numbers only)"
                   value={settings.pan_number}
-                  onChange={(e) => setSettings({ ...settings, pan_number: e.target.value })}
+                  onChange={(e) => setSettings({ ...settings, pan_number: e.target.value.replace(/\D/g, '').slice(0, 9) })}
                   className="w-full px-3 py-2 border rounded-lg font-mono font-bold"
                 />
               </div>
@@ -275,12 +293,20 @@ export const Settings: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Phone Numbers</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700">Store Phone (१० अंकको मोबाइल/फोन)</label>
+                  <span className={`text-xs font-mono font-bold ${settings.phone && settings.phone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {settings.phone ? settings.phone.length : 0}/10 digits
+                  </span>
+                </div>
                 <input
-                  type="text"
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="98XXXXXXXX (10 digits)"
                   value={settings.phone}
-                  onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  onChange={(e) => setSettings({ ...settings, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  className="w-full px-3 py-2 border rounded-lg font-mono"
                 />
               </div>
               <div>

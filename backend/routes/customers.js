@@ -154,6 +154,37 @@ router.post('/', (req, res) => {
 
     if (!name) return res.status(400).json({ success: false, error: 'Customer name is required' });
 
+    // Strict 10-digit phone validations
+    let cleanPhone = (phone ? String(phone).trim() : '');
+    if (cleanPhone) {
+      cleanPhone = cleanPhone.replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          error: 'Primary phone number must contain numbers only and be exactly 10 digits (e.g. 98XXXXXXXX).'
+        });
+      }
+    }
+
+    let cleanSecPhone = (secondary_phone ? String(secondary_phone).trim() : '');
+    if (cleanSecPhone) {
+      cleanSecPhone = cleanSecPhone.replace(/\D/g, '');
+      if (cleanSecPhone.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          error: 'Secondary phone number must contain numbers only and be exactly 10 digits.'
+        });
+      }
+    }
+
+    let cleanPan = (pan_vat ? String(pan_vat).trim().replace(/\D/g, '') : null);
+    if (cleanPan && cleanPan.length !== 9) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nepal PAN / VAT No must contain numbers only and be exactly 9 digits.'
+      });
+    }
+
     // Validate or auto-generate unique customer code
     let finalCode = (customer_code || '').trim().toUpperCase();
     if (!finalCode) {
@@ -184,8 +215,8 @@ router.post('/', (req, res) => {
     const result = insert.run(
       finalCode,
       name,
-      phone || null,
-      secondary_phone || null,
+      cleanPhone || null,
+      cleanSecPhone || null,
       email || null,
       contact_person || null,
       customer_type || 'Contractor',
@@ -193,7 +224,7 @@ router.post('/', (req, res) => {
       permanent_address || null,
       temporary_address || null,
       metaStr,
-      pan_vat || null,
+      cleanPan || null,
       Number(credit_limit || 0),
       Number(payment_terms_days || 30),
       Number(opening_balance || 0),
@@ -250,6 +281,37 @@ router.put('/:id', (req, res) => {
     const resolvedAddress = address || temporary_address || permanent_address || null;
     const metaStr = typeof location_meta === 'object' ? JSON.stringify(location_meta) : (location_meta || null);
 
+    // Strict 10-digit phone validations
+    let cleanPhone = (phone ? String(phone).trim() : '');
+    if (cleanPhone) {
+      cleanPhone = cleanPhone.replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          error: 'Primary phone number must contain numbers only and be exactly 10 digits (e.g. 98XXXXXXXX).'
+        });
+      }
+    }
+
+    let cleanSecPhone = (secondary_phone ? String(secondary_phone).trim() : '');
+    if (cleanSecPhone) {
+      cleanSecPhone = cleanSecPhone.replace(/\D/g, '');
+      if (cleanSecPhone.length !== 10) {
+        return res.status(400).json({
+          success: false,
+          error: 'Secondary phone number must contain numbers only and be exactly 10 digits.'
+        });
+      }
+    }
+
+    let cleanPan = (pan_vat ? String(pan_vat).trim().replace(/\D/g, '') : null);
+    if (cleanPan && cleanPan.length !== 9) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nepal PAN / VAT No must contain numbers only and be exactly 9 digits.'
+      });
+    }
+
     const update = db.prepare(`
       UPDATE customers SET
         customer_code = @customer_code,
@@ -275,8 +337,8 @@ router.put('/:id', (req, res) => {
       id: req.params.id,
       customer_code: finalCode,
       name,
-      phone: phone || null,
-      secondary_phone: secondary_phone || null,
+      phone: cleanPhone || null,
+      secondary_phone: cleanSecPhone || null,
       email: email || null,
       contact_person: contact_person || null,
       customer_type: customer_type || 'Contractor',
@@ -284,7 +346,7 @@ router.put('/:id', (req, res) => {
       permanent_address: permanent_address || null,
       temporary_address: temporary_address || null,
       location_meta: metaStr,
-      pan_vat: pan_vat || null,
+      pan_vat: cleanPan || null,
       credit_limit: Number(credit_limit || 0),
       payment_terms_days: Number(payment_terms_days || 30),
       notes: notes || null,

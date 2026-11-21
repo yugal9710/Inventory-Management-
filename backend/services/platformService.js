@@ -472,6 +472,22 @@ class PlatformService {
     const slug = (payload.slug || payload.name.toLowerCase().replace(/[^a-z0-9]/g, '-')).replace(/--+/g, '-');
     const id = `tenant-${slug}-${Date.now().toString().slice(-4)}`;
 
+    let cleanPhone = '';
+    if (payload.phone) {
+      cleanPhone = String(payload.phone).replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        throw new Error('Contact phone must contain numbers only and be exactly 10 digits.');
+      }
+    }
+
+    let cleanPan = '';
+    if (payload.pan) {
+      cleanPan = String(payload.pan).replace(/\D/g, '');
+      if (cleanPan.length !== 9) {
+        throw new Error('Nepal PAN / VAT No. must contain numbers only and be 9 digits.');
+      }
+    }
+
     const totalDue = Number(payload.totalAmountDue) || 75000;
     const initialPay = Number(payload.initialPayment) || 0;
 
@@ -485,8 +501,8 @@ class PlatformService {
       timeZone: payload.timeZone || 'Asia/Kathmandu',
       planId: payload.planId || 'plan-professional',
       address: payload.address || 'Kathmandu, Nepal',
-      phone: payload.phone || '',
-      pan: payload.pan || '',
+      phone: cleanPhone,
+      pan: cleanPan,
       contactPerson: payload.contactPerson || payload.adminName || '',
       createdAt: new Date().toISOString(),
       modules: {
@@ -590,8 +606,28 @@ class PlatformService {
       if (t.subscription) t.subscription.planId = payload.planId;
     }
     if (payload.address !== undefined) t.address = payload.address;
-    if (payload.phone !== undefined) t.phone = payload.phone;
-    if (payload.pan !== undefined) t.pan = payload.pan;
+    if (payload.phone !== undefined) {
+      if (payload.phone) {
+        const cleanPhone = String(payload.phone).replace(/\D/g, '');
+        if (cleanPhone.length !== 10) {
+          throw new Error('Contact phone must contain numbers only and be exactly 10 digits.');
+        }
+        t.phone = cleanPhone;
+      } else {
+        t.phone = '';
+      }
+    }
+    if (payload.pan !== undefined) {
+      if (payload.pan) {
+        const cleanPan = String(payload.pan).replace(/\D/g, '');
+        if (cleanPan.length !== 9) {
+          throw new Error('Nepal PAN / VAT No. must contain numbers only and be 9 digits.');
+        }
+        t.pan = cleanPan;
+      } else {
+        t.pan = '';
+      }
+    }
     if (payload.contactPerson !== undefined) t.contactPerson = payload.contactPerson;
     if (payload.status) t.status = payload.status;
 
@@ -693,6 +729,13 @@ class PlatformService {
 
   createTenantUser(tenantId, payload) {
     const data = this.load();
+    let cleanPhone = '';
+    if (payload.phone) {
+      cleanPhone = String(payload.phone).replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        throw new Error('User phone must contain numbers only and be exactly 10 digits.');
+      }
+    }
     const newUser = {
       id: `usr-${Date.now()}`,
       tenantId,
@@ -700,7 +743,7 @@ class PlatformService {
       email: payload.email,
       username: payload.username,
       role: payload.role || 'cashier',
-      phone: payload.phone || '',
+      phone: cleanPhone,
       active: true
     };
     data.users = data.users || [];
@@ -719,7 +762,17 @@ class PlatformService {
     if (payload.email) user.email = payload.email;
     if (payload.username) user.username = payload.username;
     if (payload.role) user.role = payload.role;
-    if (payload.phone !== undefined) user.phone = payload.phone;
+    if (payload.phone !== undefined) {
+      if (payload.phone) {
+        const cleanPhone = String(payload.phone).replace(/\D/g, '');
+        if (cleanPhone.length !== 10) {
+          throw new Error('User phone must contain numbers only and be exactly 10 digits.');
+        }
+        user.phone = cleanPhone;
+      } else {
+        user.phone = '';
+      }
+    }
     if (payload.active !== undefined) user.active = payload.active;
     if (payload.password) {
       user.password = payload.password;

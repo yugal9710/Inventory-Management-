@@ -20,6 +20,22 @@ router.get('/', (req, res) => {
 router.put('/', (req, res) => {
   try {
     const updates = req.body;
+
+    if (updates.phone) {
+      const cleanPhone = String(updates.phone).replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({ success: false, error: 'Store phone number must contain numbers only and be exactly 10 digits.' });
+      }
+      updates.phone = cleanPhone;
+    }
+    if (updates.pan_number) {
+      const cleanPan = String(updates.pan_number).replace(/\D/g, '');
+      if (cleanPan.length !== 9) {
+        return res.status(400).json({ success: false, error: 'Nepal PAN number must contain numbers only and be exactly 9 digits.' });
+      }
+      updates.pan_number = cleanPan;
+    }
+
     const stmt = db.prepare(`
       INSERT INTO settings (key, value) VALUES (?, ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
@@ -80,12 +96,20 @@ router.post('/users', (req, res) => {
       return res.status(400).json({ success: false, error: 'Username, password and role are required' });
     }
 
+    let cleanPhone = null;
+    if (phone) {
+      cleanPhone = String(phone).replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({ success: false, error: 'User phone number must contain numbers only and be exactly 10 digits.' });
+      }
+    }
+
     const insert = db.prepare(`
       INSERT INTO users (username, password_hash, full_name, role, phone, active)
       VALUES (?, ?, ?, ?, ?, 1)
     `);
 
-    const result = insert.run(username, password, full_name, role, phone || null);
+    const result = insert.run(username, password, full_name, role, cleanPhone);
     res.json({ success: true, userId: result.lastInsertRowid, message: 'User created' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

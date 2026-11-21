@@ -166,6 +166,23 @@ export default function TenantProfileModal({
 
   const handleUpdateStoreProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (editStoreForm.phone) {
+      const cleanPhone = String(editStoreForm.phone).replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        alert('Store phone number must contain numbers only and be exactly 10 digits.');
+        return;
+      }
+    }
+
+    if (editStoreForm.pan) {
+      const cleanPan = String(editStoreForm.pan).replace(/\D/g, '');
+      if (cleanPan.length !== 9) {
+        alert('Nepal PAN / VAT No. must contain numbers only and be exactly 9 digits.');
+        return;
+      }
+    }
+
     setProcessing(true);
     try {
       const res = await fetch(`/api/platform/tenants/${tenantId}`, {
@@ -300,6 +317,15 @@ export default function TenantProfileModal({
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (userForm.phone) {
+      const cleanPhone = String(userForm.phone).replace(/\D/g, '');
+      if (cleanPhone.length !== 10) {
+        alert('User phone number must contain numbers only and be exactly 10 digits.');
+        return;
+      }
+    }
+
     setProcessing(true);
     try {
       const url = editingUser
@@ -525,15 +551,22 @@ export default function TenantProfileModal({
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                        Nepal PAN / VAT Number
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          Nepal PAN / VAT Number
+                        </label>
+                        <span className="text-[10px] font-mono font-bold text-slate-400">
+                          {editStoreForm.pan ? editStoreForm.pan.length : 0}/9 digits
+                        </span>
+                      </div>
                       <input
                         type="text"
+                        inputMode="numeric"
+                        maxLength={9}
                         value={editStoreForm.pan}
-                        onChange={e => setEditStoreForm({ ...editStoreForm, pan: e.target.value })}
-                        placeholder="e.g. 601239841"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:bg-white focus:border-orange-500 outline-hidden"
+                        onChange={e => setEditStoreForm({ ...editStoreForm, pan: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                        placeholder="9 digits (numbers only)"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold font-mono focus:bg-white focus:border-orange-500 outline-hidden"
                       />
                     </div>
 
@@ -551,15 +584,22 @@ export default function TenantProfileModal({
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                        Phone / Mobile
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                          Phone / Mobile
+                        </label>
+                        <span className={`text-[10px] font-mono font-bold ${editStoreForm.phone && editStoreForm.phone.length === 10 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          {editStoreForm.phone ? editStoreForm.phone.length : 0}/10 digits
+                        </span>
+                      </div>
                       <input
-                        type="text"
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
                         value={editStoreForm.phone}
-                        onChange={e => setEditStoreForm({ ...editStoreForm, phone: e.target.value })}
-                        placeholder="+977 21 524100"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:bg-white focus:border-orange-500 outline-hidden"
+                        onChange={e => setEditStoreForm({ ...editStoreForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        placeholder="98XXXXXXXX (10 digits only)"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold font-mono focus:bg-white focus:border-orange-500 outline-hidden"
                       />
                     </div>
 
